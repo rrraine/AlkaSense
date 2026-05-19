@@ -1,0 +1,13 @@
+# Frontend
+mobile/node_modules/
+mobile/.env
+mobile/.expo/
+
+# Backend
+backend/venv/
+backend/.env
+backend/__pycache__/
+
+# ML
+ml/dataset/
+*.tflite
