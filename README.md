@@ -101,53 +101,67 @@ AlkaSense is a mobile-first, offline-capable application for on-device sensing a
 
 ```
 alkasense/
-├── mobile/          ← React Native / Expo FRONTEND
-│   ├── app/         ← Expo Router screens
-│   │    ├── screen1.tsx
-│   │    ├── screen2.tsx
-│   │    └── login.tsx
-│   ├── components/          ← Reusable components
-│   │    ├── component1.tsx
-│   │    ├── component2.tsx
+|
+├── mobile/                       
+│   ├── App.tsx                   # Entry point
+│   ├── app.json                  # Main Expo config file (app name, icons, versions)
+│   ├── package.json              # Project dependencies
+|   | 
+│   ├── assets/                   # Images, assets, resources
+│   │    └── models/   
+|   | 
+│   ├── src/                      # Main source codes
+|   │    ├── app/                 # Screens
+│   │    ├── Dashboard.tsx
+│   │    └── Login.tsx
+|   |
+│   ├── components/               # Reusable components
 │   │    └── camera.tsx
-│   ├── services/    ← API calls, report generation, other services
-│   │    ├── api.ts
-│   │    └── report.ts
-│   ├── store/       ← Zustand state
-│   ├── db/          ← expo-sqlite schema & queries
-│   ├── assets/ 
-│   │    └── models/ ← TFLite model ASV classifiers
-│   └── .env         ← Expo Public API keys (NEVER commit)
+|   |
+│   └── db/                                   # Data Access Layer
+│        ├── repositories/                    # The "Middlemen" between UI and raw SQLite queries
+│        │    ├── SessionRepository.ts        # Manages evaluation event lifecycles (start, complete, sync)
+│        │    └── SampleRepository.ts         # Manages individual grain data entries & human score overrides
+|        |
+│        └── database.ts                      # Handles SQLite database connection & initial table creation
+|   
 │
-├── backend/         ← FastAPI BACKEND
-│    ├── features/   ← Vertical Slice Architecture
-│    │     ├── feature1/
-│    │     │    ├── router.py
-│    │     │    ├── service.py
-│    │     │    ├── schema.py
-│    │     │    ├── model.py
-│    │     │    └── utils.py
-│    │     └── feature2/
-│    │          ├── router.py
-│    │          ├── service.py
-│    │          ├── schema.py
-│    │          ├── model.py
-│    │          └── utils.py
-│    ├── templates/   ← Jinja2 admin views
-│    ├── main.py      ← Executable file
-│    ├── venv/        
-│    └── .env         ← Firebase + DB credentials (NEVER commit)
 │
-└── ml/               ← AI/ML
-    ├── dataset       ← Rice samples 
-    │    ├── asv_1
-    │    ├── asv_2
-    │    ├── asv_3
-    │    ├── asv_4
-    │    ├── asv_5
-    │    ├── asv_6
-    │    └── asv_1
-    └── train.py        ← Actual structure is up to the AI developers 
+├── backend/    
+│    ├── main.py                    # Entry point
+│    ├── package.json               # Project dependencies    
+|    |
+│    └── src/                       # Main source codes
+│         ├── features/             # Vertical Slice Architecture
+│         |    ├── feature1/
+│         │    |    ├── router.py
+│         │    |    ├── service.py
+│         │    |    ├── schema.py
+│         │    |    ├── model.py
+│         │    |    └── utils.py
+│         │    |
+│         |    └── feature2/
+│         |         ├── router.py
+│         |         ├── service.py
+│         |         ├── schema.py
+│         |         ├── model.py
+│         |         └── utils.py
+│         |    
+│         └── templates/            # Jinja2 admin views
+│
+│
+│
+└── ml/                 
+    ├── dataset             # Rice samples
+    │    ├── asv_1/
+    │    ├── asv_2/
+    │    ├── asv_3/
+    │    ├── asv_4/
+    │    ├── asv_5/
+    │    ├── asv_6/
+    │    └── asv_7/
+    |
+    └── placeholder.py      # Actual structure is up to the AI developers 
 ```
 
 > Both `mobile/.env` and `backend/.env` are **gitignored**. Never push credentials.
