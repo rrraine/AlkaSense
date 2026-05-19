@@ -18,8 +18,6 @@
 8. [Phase 4 — Service Configuration](#8-phase-4--service-configuration)
 9. [Phase 5 — Linking Frontend & Backend](#9-phase-5--linking-frontend--backend)
 10. [Running the Project](#10-running-the-project)
-11. [Security Guidelines](#11-security-guidelines)
-12. [Troubleshooting](#13-troubleshooting)
 
 
 ---
@@ -46,7 +44,7 @@ AlkaSense is a mobile-first, offline-capable application for on-device sensing a
 | **Full-Stack Developer** | Integration between frontend and backend at end of each increment; environment wiring; deployment to Render |
 | **AI Developer** | Dataset collection, data analysis, model creation, training, validation, annotation |
 
-> **Integration cadence:** Frontend and backend are developed **in parallel** per increment. The full-stack lead is responsible for linking them at increment close. Do **not** block your work waiting for the other team.
+> **Integration cadence:** Frontend and backend are developed **in parallel** per increment. The full-stack lead is responsible for linking them at increment close.
 
 ---
 
@@ -164,7 +162,6 @@ alkasense/
     └── placeholder.py      # Actual structure is up to the AI developers 
 ```
 
-> Both `mobile/.env` and `backend/.env` are **gitignored**. Never push credentials.
 
 ---
 
@@ -372,34 +369,6 @@ uvicorn main:app --reload
 # Visit: http://localhost:8000/docs
 ```
 
----
-
-## 11. Security Guidelines
-
-| Rule | Details |
-|---|---|
-| Never commit `.env` files | Both `mobile/.env` and `backend/.env` are gitignored. |
-
----
-
-## 12. Troubleshooting
-
-### Expo Go won't connect
-- Ensure your phone and development machine are on the **same Wi-Fi network**.
-- SDK mismatch
-
-### `python --version` shows wrong version inside venv
-- Make sure you activated the venv **before** running any Python commands.
-
-### `uvicorn` command not found
-- You likely forgot to activate the venv. Run `venv\Scripts\activate` first.
-
-### Firebase credentials error on backend start
-- Double-check `backend/.env` has the correct `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY`, and `FIREBASE_CLIENT_EMAIL`.
-- The private key must include the full `-----BEGIN PRIVATE KEY-----` header and footer, wrapped in double quotes in the `.env` file.
-
-### Neon DB connection refused
-- Verify the `DATABASE_URL` in `backend/.env` is the full connection string from Neon (including `postgresql://`).
 
 ---
 
