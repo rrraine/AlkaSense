@@ -1,160 +1,411 @@
 import { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Alert, ActivityIndicator
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  Image,
+  KeyboardAvoidingView,
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import { useSessionStore } from '../store/sessionStore';
-import { validateBatchMetadata } from '../validators/BatchMetadataValidator';
-import { SessionRepository } from '../db/repositories/SessionRepository';
-import { initDatabase } from '../db/database';
 
-const sessionRepo = new SessionRepository();
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+const GREEN = '#00A63E';
 
 export default function CreateSessionScreen() {
-  const { form, setForm, resetForm, setActiveSession } = useSessionStore();
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  async function handleStartSession() {
-    // 1. Validate
-    const result = validateBatchMetadata(form);
-    if (!result.valid) {
-      setErrors(result.errors);
-      return;
-    }
-    setErrors({});
-    setLoading(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-    try {
-      // 2. Init DB
-      await initDatabase();
+  const [form, setForm] = useState({
+    sessionName: '',
+    batchIdentifier: '',
+    kohConcentration: '',
+    incubationDuration: '',
+    incubationTemperature: '',
+  });
 
-      // 3. Get evaluator ID from secure store
-      let evaluatorId = await SecureStore.getItemAsync('evaluator_id');
-      if (!evaluatorId) {
-        evaluatorId = `evaluator-${Date.now()}`;
-        await SecureStore.setItemAsync('evaluator_id', evaluatorId);
-      }
+  function updateField(field: string, value: string) {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
 
-      // 4. Write to SQLite via SessionRepository
-      const session = await sessionRepo.create(
-        evaluatorId,
-        form.location,
-        form.notes
-      );
+  function handleStartSession() {
+    console.log('Session Started');
 
-      // 5. Set active session in Zustand
-      setActiveSession(session.id);
+    setForm({
+      sessionName: '',
+      batchIdentifier: '',
+      kohConcentration: '',
+      incubationDuration: '',
+      incubationTemperature: '',
+    });
 
-      Alert.alert(
-        'Session Started',
-        `Session ID: ${session.id.slice(0, 8)}...\nLocation: ${form.location}`,
-        [{ text: 'OK' }]
-      );
-
-      resetForm();
-
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    } finally {
-      setLoading(false);
-    }
+    setSelectedDate(new Date());
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>New Batch Session</Text>
-      <Text style={styles.subtitle}>Enter evaluation metadata before capturing samples</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.root}>
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
 
-      {/* Evaluator Name */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Evaluator Name</Text>
-        <TextInput
-          style={[styles.input, errors.evaluatorName && styles.inputError]}
-          placeholder="e.g. Juan dela Cruz"
-          value={form.evaluatorName}
-          onChangeText={(v) => setForm({ evaluatorName: v })}
-        />
-        {errors.evaluatorName && (
-          <Text style={styles.error}>{errors.evaluatorName}</Text>
-        )}
+          <Text style={styles.headerTitle}>
+            Create New Session
+          </Text>
+        </View>
+
+        {/* BODY */}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* PROFILE CARD */}
+          <View style={styles.profileCard}>
+            <View style={styles.avatar}>
+              <Image
+                source={require('../../assets/personIcon.png')}
+                style={styles.avatarImage}
+              />
+            </View>
+
+            <View>
+              <Text style={styles.profileName}>
+                Evaluator Name
+              </Text>
+              <Text style={styles.profileRole}>
+                Role • PhilRice
+              </Text>
+            </View>
+          </View>
+
+          {/* SESSION INFORMATION */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>
+              Session Information
+            </Text>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Session Name <Text style={styles.required}>*</Text>
+              </Text>
+
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., Spring Harvest 2026"
+                placeholderTextColor="#9CA3AF"
+                value={form.sessionName}
+                onChangeText={(v) =>
+                  updateField('sessionName', v)
+                }
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Batch Identifier <Text style={styles.required}>*</Text>
+              </Text>
+
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., PR-2026-041"
+                placeholderTextColor="#9CA3AF"
+                value={form.batchIdentifier}
+                onChangeText={(v) =>
+                  updateField('batchIdentifier', v)
+                }
+              />
+            </View>
+
+            {/* DATE */}
+            <View style={styles.field}>
+              <Text style={styles.label}>Evaluation Date</Text>
+
+              <TouchableOpacity
+                style={styles.input}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.dateText}>
+                  {selectedDate.toLocaleDateString('en-US')}
+                </Text>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display={
+                    Platform.OS === 'ios' ? 'spinner' : 'default'
+                  }
+                  onChange={(_, date?: Date) => {
+                    setShowDatePicker(false);
+                    if (date) setSelectedDate(date);
+                  }}
+                />
+              )}
+            </View>
+          </View>
+
+          {/* TREATMENT PARAMETERS */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>
+              Treatment Parameters
+            </Text>
+
+            <Text style={styles.cardSubtitle}>
+              Following IRRI Standard Protocol
+            </Text>
+
+            <View style={styles.row}>
+              <View style={[styles.field, styles.halfField]}>
+                <Text style={styles.label}>
+                  KOH Concentration (%)
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  value={form.kohConcentration}
+                  onChangeText={(v) =>
+                    updateField('kohConcentration', v)
+                  }
+                  keyboardType={
+                    Platform.OS === 'ios'
+                      ? 'decimal-pad'
+                      : 'numeric'
+                  }
+                />
+              </View>
+
+              <View style={[styles.field, styles.halfField]}>
+                <Text style={styles.label}>
+                  Duration (hours)
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  value={form.incubationDuration}
+                  onChangeText={(v) =>
+                    updateField('incubationDuration', v)
+                  }
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Incubation Temperature (°C)
+              </Text>
+
+              <TextInput
+                style={styles.input}
+                value={form.incubationTemperature}
+                onChangeText={(v) =>
+                  updateField('incubationTemperature', v)
+                }
+                keyboardType={
+                  Platform.OS === 'ios'
+                    ? 'decimal-pad'
+                    : 'numeric'
+                }
+              />
+            </View>
+          </View>
+
+          {/* extra space so keyboard + footer won't block UI */}
+          <View style={{ height: 200 }} />
+        </ScrollView>
+
+        {/* FOOTER */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={handleStartSession}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.startButtonText}>
+                Start Session
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {/* Location */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Location</Text>
-        <TextInput
-          style={[styles.input, errors.location && styles.inputError]}
-          placeholder="e.g. PhilRice Field Lab B"
-          value={form.location}
-          onChangeText={(v) => setForm({ location: v })}
-        />
-        {errors.location && (
-          <Text style={styles.error}>{errors.location}</Text>
-        )}
-      </View>
-
-      {/* Rice Variety */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Rice Variety</Text>
-        <TextInput
-          style={[styles.input, errors.riceVariety && styles.inputError]}
-          placeholder="e.g. NSIC Rc222"
-          value={form.riceVariety}
-          onChangeText={(v) => setForm({ riceVariety: v })}
-        />
-        {errors.riceVariety && (
-          <Text style={styles.error}>{errors.riceVariety}</Text>
-        )}
-      </View>
-
-      {/* Notes */}
-      <View style={styles.field}>
-        <Text style={styles.label}>Notes (optional)</Text>
-        <TextInput
-          style={[styles.input, styles.textarea]}
-          placeholder="Any additional observations..."
-          value={form.notes}
-          onChangeText={(v) => setForm({ notes: v })}
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      {/* Submit */}
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleStartSession}
-        disabled={loading}
-      >
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.buttonText}>Start Session</Text>
-        }
-      </TouchableOpacity>
-
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60, backgroundColor: '#fff' },
-  title: { fontSize: 22, fontWeight: '600', color: '#1a1a1a', marginBottom: 4 },
-  subtitle: { fontSize: 13, color: '#888', marginBottom: 24 },
-  field: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '500', color: '#444', marginBottom: 6 },
+  root: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+  },
+
+  header: {
+    backgroundColor: GREEN,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 54,
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+  },
+
+  backButton: {
+    marginRight: 12,
+  },
+
+  backArrow: {
+    color: '#FFFFFF',
+    fontSize: 24,
+  },
+
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 120,
+  },
+
+  profileCard: {
+    backgroundColor: '#E8F5EC',
+    borderWidth: 1,
+    borderColor: '#B7E4C7',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  avatarImage: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
+  },
+
+  profileName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  profileRole: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 10,
+  },
+
+  field: {
+    marginBottom: 14,
+  },
+
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  halfField: {
+    flex: 1,
+  },
+
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+
+  required: {
+    color: '#DC2626',
+  },
+
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
-    padding: 12, fontSize: 14, color: '#1a1a1a', backgroundColor: '#fafafa'
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 15,
   },
-  inputError: { borderColor: '#e53e3e' },
-  textarea: { height: 80, textAlignVertical: 'top' },
-  error: { fontSize: 12, color: '#e53e3e', marginTop: 4 },
-  button: {
-    backgroundColor: '#1D9E75', borderRadius: 8,
-    padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 40
+
+  dateText: {
+    fontSize: 15,
+    color: '#111827',
   },
-  buttonDisabled: { backgroundColor: '#9FE1CB' },
-  buttonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+
+  startButton: {
+    backgroundColor: GREEN,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
