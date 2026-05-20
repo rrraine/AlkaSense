@@ -1,5 +1,6 @@
 {
   "expo": {
+    
     "name": "AlkaSense",
     "slug": "mobile",
     "version": "1.0.0",
@@ -30,6 +31,7 @@
       "expo-sqlite",
       "expo-secure-store",
       "expo-sharing"
-    ]
+    ],
+    "sdkVersion": "54.0.0"
   }
 }
