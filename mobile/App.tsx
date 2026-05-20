@@ -4,12 +4,13 @@ import { initDatabase } from './src/db/database';
 import { SessionRepository } from './src/db/repositories/SessionRepository';
 import { SampleRepository } from './src/db/repositories/SampleRepository';
 import CreateSessionScreen from './src/app/CreateSessionScreen';
+import LoginScreen from './src/app/LoginScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
 
 export default function App() {
-  return <CreateSessionScreen />;
+  return <LoginScreen />;
   // const [logs, setLogs] = useState<string[]>([]);
 
   // const log = (msg: string) => setLogs(prev => [...prev, msg]);
