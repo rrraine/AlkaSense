@@ -1,3 +1,6 @@
+**/__pycache__/
+*.pyc
+
 # Frontend
 mobile/node_modules/
 mobile/.env
@@ -8,6 +11,7 @@ mobile/google-services.json
 backend/venv/
 backend/.env
 backend/__pycache__/
+backend/src/core/secrets/
 
 # ML
 ml/dataset/
