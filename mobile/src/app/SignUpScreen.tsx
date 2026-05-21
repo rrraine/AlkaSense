@@ -22,6 +22,36 @@ export default function SignUpScreen({ navigation }: any) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function handleSignUp() {
+    const newErrors: Record<string, string> = {};
+
+    if (!fullName.trim()) newErrors.fullName = "Full name is required.";
+    if (!email.trim()) {
+      newErrors.email = "Email address is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Enter a valid email address.";
+    }
+    if (!role) newErrors.role = "Please select a role.";
+    if (!institution.trim()) newErrors.institution = "Institution is required.";
+    if (!password) {
+      newErrors.password = "Password is required.";
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters.";
+    }
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password.";
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      console.log("Form is valid, proceed with signup");
+    }
+  }
 
   return (
     <KeyboardAvoidingView
@@ -54,20 +84,21 @@ export default function SignUpScreen({ navigation }: any) {
           <View style={styles.field}>
             <Text style={styles.label}>Full Name <Text style={styles.required}>*</Text></Text>
             <TextInput
-              style={styles.input}
-              placeholder="Dr. Juan Dela Cruz"
+              style={[styles.input, errors.fullName && styles.inputError]}
+              placeholder="Juan Dela Cruz"
               placeholderTextColor="#9CA3AF"
               value={fullName}
               onChangeText={setFullName}
               autoCapitalize="words"
             />
+            {!!errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
           </View>
 
           {/* EMAIL */}
           <View style={styles.field}>
             <Text style={styles.label}>Email Address <Text style={styles.required}>*</Text></Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.email && styles.inputError]}
               placeholder="evaluator@philrice.gov.ph"
               placeholderTextColor="#9CA3AF"
               value={email}
@@ -75,6 +106,7 @@ export default function SignUpScreen({ navigation }: any) {
               keyboardType="email-address"
               autoCapitalize="none"
             />
+            {!!errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           </View>
 
           {/* ROLE DROPDOWN */}
@@ -104,18 +136,20 @@ export default function SignUpScreen({ navigation }: any) {
                 ))}
               </View>
             )}
+            {!!errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
           </View>
 
           {/* INSTITUTION */}
           <View style={styles.field}>
             <Text style={styles.label}>Institution <Text style={styles.required}>*</Text></Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.institution && styles.inputError]}
               placeholder="Philippine Rice Research Institute"
               placeholderTextColor="#9CA3AF"
               value={institution}
               onChangeText={setInstitution}
             />
+            {!!errors.institution && <Text style={styles.errorText}>{errors.institution}</Text>}
           </View>
 
           {/* PASSWORD */}
@@ -134,6 +168,7 @@ export default function SignUpScreen({ navigation }: any) {
                 <Text style={styles.show}>{showPassword ? "Hide" : "Show"}</Text>
               </TouchableOpacity>
             </View>
+            {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
           {/* CONFIRM PASSWORD */}
@@ -152,6 +187,7 @@ export default function SignUpScreen({ navigation }: any) {
                 <Text style={styles.show}>{showConfirmPassword ? "Hide" : "Show"}</Text>
               </TouchableOpacity>
             </View>
+            {!!errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
           </View>
 
           {/* ACCOUNT REVIEW NOTICE */}
@@ -163,14 +199,14 @@ export default function SignUpScreen({ navigation }: any) {
           </View>
 
           {/* BUTTON */}
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={handleSignUp}>
             <Text style={styles.buttonText}>Create Account</Text>
           </TouchableOpacity>
 
           {/* SIGN IN */}
           <View style={styles.signinRow}>
             <Text style={styles.signinText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+            <TouchableOpacity onPress={() => navigation?.goBack()}>
               <Text style={styles.signinLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
@@ -216,8 +252,8 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-    width: 64,
-    height: 64,
+    width: 52,
+    height: 52,
     borderRadius: 16,
     backgroundColor: "#008236",
     alignItems: "center",
@@ -272,6 +308,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     color: "#111827",
+  },
+
+  inputError: {
+    borderWidth: 1,
+    borderColor: "#e53e3e",
+  },
+
+  errorText: {
+    fontSize: 12,
+    color: "#e53e3e",
+    marginTop: 4,
   },
 
   // Dropdown
