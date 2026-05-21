@@ -16,7 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const GREEN = '#008236';
 
-export default function CreateSessionScreen() {
+export default function CreateSessionScreen({ navigation }: any) {
   const [loading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -59,7 +59,7 @@ export default function CreateSessionScreen() {
       <View style={styles.root}>
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton}>
+          <TouchableOpacity style={styles.backButton}  onPress={() => navigation?.goBack()}>
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
 

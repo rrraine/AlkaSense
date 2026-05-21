@@ -11,6 +11,7 @@ import { SampleRepository } from './src/db/repositories/SampleRepository';
 import CreateSessionScreen from './src/app/CreateSessionScreen';
 import LoginScreen from './src/app/LoginScreen';
 import SignUpScreen from './src/app/SignUpScreen';
+import DashboardScreen from './src/app/DashboardScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -18,22 +19,17 @@ const sampleRepo = new SampleRepository();
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-    return (
+  useEffect(() => {
+    initDatabase().catch((e: any) => console.error('DB init failed:', e.message));
+  }, []);
+ 
+  return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-        />
-
-        <Stack.Screen
-          name="SignUp"
-          component={SignUpScreen}
-        />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
