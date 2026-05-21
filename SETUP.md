@@ -230,7 +230,7 @@ It is important to keep everyone's dependencies updated by:
 2. Pull the updated .json:
 ```
 cd mobile
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### Backend:

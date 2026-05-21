@@ -1,15 +1,46 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Button, ScrollView, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import { initDatabase } from './src/db/database';
+
 import { SessionRepository } from './src/db/repositories/SessionRepository';
 import { SampleRepository } from './src/db/repositories/SampleRepository';
+
 import CreateSessionScreen from './src/app/CreateSessionScreen';
+import LoginScreen from './src/app/LoginScreen';
+import SignUpScreen from './src/app/SignUpScreen';
+import DashboardScreen from './src/app/DashboardScreen';
+import SessionProgressScreen from './src/app/SessionProgressScreen';
+import RegisterSampleScreen from './src/app/RegisterSampleScreen';
+import ImageCaptureScreen from './src/app/ImageCaptureScreen';
+import ImagePreviewScreen from './src/app/ImagePreviewScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
 
+const Stack = createNativeStackNavigator();
+
 export default function App() {
-  return <CreateSessionScreen />;
+  useEffect(() => {
+    initDatabase().catch((e: any) => console.error('DB init failed:', e.message));
+  }, []);
+ 
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
+        <Stack.Screen name="SessionProgress" component={SessionProgressScreen} />
+        <Stack.Screen name="RegisterSample" component={RegisterSampleScreen} />
+        <Stack.Screen name="ImageCapture" component={ImageCaptureScreen} />
+        <Stack.Screen name="ImagePreview" component={ImagePreviewScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
   // const [logs, setLogs] = useState<string[]>([]);
 
   // const log = (msg: string) => setLogs(prev => [...prev, msg]);
