@@ -14,6 +14,7 @@ import SignUpScreen from './src/app/SignUpScreen';
 import DashboardScreen from './src/app/DashboardScreen';
 import SessionProgressScreen from './src/app/SessionProgressScreen';
 import RegisterSampleScreen from './src/app/RegisterSampleScreen';
+import ImageCaptureScreen from './src/app/ImageCaptureScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -34,6 +35,7 @@ export default function App() {
         <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
         <Stack.Screen name="SessionProgress" component={SessionProgressScreen} />
         <Stack.Screen name="RegisterSample" component={RegisterSampleScreen} />
+        <Stack.Screen name="ImageCapture" component={ImageCaptureScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
