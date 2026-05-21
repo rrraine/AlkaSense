@@ -14,6 +14,27 @@ export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function handleSignIn() {
+    const newErrors: Record<string, string> = {};
+
+    if (!email.trim()) {
+      newErrors.email = "Email address is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Enter a valid email address.";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required.";
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      navigation.navigate("Dashboard");
+    }
+  }
 
   return (
     <KeyboardAvoidingView
@@ -40,13 +61,14 @@ export default function LoginScreen({ navigation }: any) {
           </Text>
         </View>
 
-        {/* FORM (NO CARD) */}
+        {/* FORM */}
         <View style={styles.form}>
+
           {/* EMAIL */}
           <View style={styles.field}>
             <Text style={styles.label}>Email Address</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !!errors.email && styles.inputError]}
               placeholder="evaluator@philrice.gov.ph"
               placeholderTextColor="#9CA3AF"
               value={email}
@@ -54,13 +76,13 @@ export default function LoginScreen({ navigation }: any) {
               keyboardType="email-address"
               autoCapitalize="none"
             />
+            {!!errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           </View>
 
           {/* PASSWORD */}
           <View style={styles.field}>
             <Text style={styles.label}>Password</Text>
-
-            <View style={styles.passwordRow}>
+            <View style={[styles.passwordRow, !!errors.password && styles.inputError]}>
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Enter your password"
@@ -69,36 +91,31 @@ export default function LoginScreen({ navigation }: any) {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-
-              <TouchableOpacity
-                onPress={() => setShowPassword((prev) => !prev)}
-              >
-                <Text style={styles.show}>
-                  {showPassword ? "Hide" : "Show"}
-                </Text>
+              <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+                <Text style={styles.show}>{showPassword ? "Hide" : "Show"}</Text>
               </TouchableOpacity>
             </View>
+            {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
-          {/* FORGOT PASSWORD (LEFT SIDE) */}
+          {/* FORGOT PASSWORD */}
           <TouchableOpacity>
             <Text style={styles.forgot}>Forgot password?</Text>
           </TouchableOpacity>
 
           {/* BUTTON */}
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("Dashboard")}>
+          <TouchableOpacity style={styles.button} onPress={handleSignIn}>
             <Text style={styles.buttonText}>Sign In</Text>
           </TouchableOpacity>
 
           {/* SIGN UP */}
           <View style={styles.signupRow}>
-            <Text style={styles.signupText}>
-              Don't have an account?{" "}
-            </Text>
+            <Text style={styles.signupText}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
               <Text style={styles.signupLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -122,22 +139,18 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-  width: 80,
-  height: 80,
-  borderRadius: 24,
-  backgroundColor: "#008236",
-  alignItems: "center",
-  justifyContent: "center",
-  marginBottom: 10,
-
-  // iOS shadow
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.25,
-  shadowRadius: 6,
-
-  // Android shadow
-  elevation: 6,
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: "#008236",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
   },
 
   logoText: {
@@ -185,6 +198,17 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
 
+  inputError: {
+    borderWidth: 1,
+    borderColor: "#e53e3e",
+  },
+
+  errorText: {
+    fontSize: 12,
+    color: "#e53e3e",
+    marginTop: 4,
+  },
+
   passwordRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -219,15 +243,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
-
-      // iOS shadow
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.25,
-  shadowRadius: 6,
-
-  // Android shadow
-  elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
   },
 
   buttonText: {
