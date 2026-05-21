@@ -52,7 +52,7 @@ export default function DashboardScreen({ navigation }: any) {
         {/* SESSION CARD */}
         <TouchableOpacity
           style={styles.card}
-          onPress={() => navigation.navigate("CreateSession")}
+          onPress={() => navigation.navigate("SessionProgress", { sessionId: MOCK_SESSION.id })}
         >
           <View style={styles.cardTop}>
             <View style={styles.cardInfo}>

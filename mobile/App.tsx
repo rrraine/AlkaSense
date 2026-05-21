@@ -12,6 +12,7 @@ import CreateSessionScreen from './src/app/CreateSessionScreen';
 import LoginScreen from './src/app/LoginScreen';
 import SignUpScreen from './src/app/SignUpScreen';
 import DashboardScreen from './src/app/DashboardScreen';
+import SessionProgressScreen from './src/app/SessionProgressScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -30,6 +31,7 @@ export default function App() {
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
+        <Stack.Screen name="SessionProgress" component={SessionProgressScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
