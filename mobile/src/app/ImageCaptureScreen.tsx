@@ -28,8 +28,6 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
 
   const cameraRef = useRef<CameraHandle>(null);
 
-  const [capturedUri, setCapturedUri] = useState<string | null>(null);
-
   const [permission, requestPermission] = useCameraPermissions();
 
   async function handleCapture() {
@@ -48,7 +46,13 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
     const photo = await cameraRef.current?.takePicture();
 
     if (photo?.uri) {
-      setCapturedUri(photo.uri);
+      navigation.navigate('ImagePreview', {
+        imageUri: photo.uri,
+        sampleId,
+        variety,
+        grainCount,
+        session,
+      });
     }
   }
 
@@ -61,24 +65,14 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      setCapturedUri(result.assets[0].uri);
+      navigation.navigate('ImagePreview', {
+        imageUri: result.assets[0].uri,
+        sampleId,
+        variety,
+        grainCount,
+        session,
+      });
     }
-  }
-
-  function handleRetake() {
-    setCapturedUri(null);
-  }
-
-  function handleProceed() {
-    if (!capturedUri) return;
-
-    navigation?.navigate('AnalysisResult', {
-      imageUri: capturedUri,
-      sampleId,
-      variety,
-      grainCount,
-      session,
-    });
   }
 
   return (
@@ -87,7 +81,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation?.goBack()}
+          onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
           <Text style={styles.backArrow}>←</Text>
@@ -96,7 +90,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
         <Text style={styles.headerTitle}>Image Capture</Text>
       </View>
 
-      {/* SAMPLE INFO */}
+      {/* INFO */}
       <View style={styles.infoBanner}>
         <Text style={styles.infoLine1}>
           {sampleId} • {variety} • {grainCount} grains
@@ -107,20 +101,30 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
         </Text>
       </View>
 
-      {/* CAMERA SECTION */}
+      {/* CAMERA */}
       <View style={styles.cameraSection}>
 
-        {/* HINT PILLS */}
+        {/* PILLS */}
         <View style={styles.pillRow}>
 
           <View style={styles.pill}>
-            <Image source={require('../../assets/lightingIcon.png')} />
-            <Text style={styles.pillText}> Good lighting </Text>
+            <Image
+              source={require('../../assets/lightingIcon.png')}
+              style={styles.pillIcon}
+            />
+            <Text style={styles.pillText}>
+              Good lighting
+            </Text>
           </View>
 
           <View style={styles.pill}>
-            <Image source={require('../../assets/distanceIcon.png')} />
-            <Text style={styles.pillText}> 15cm distance </Text>
+            <Image
+              source={require('../../assets/distanceIcon.png')}
+              style={styles.pillIcon}
+            />
+            <Text style={styles.pillText}>
+              15cm distance
+            </Text>
           </View>
 
         </View>
@@ -129,46 +133,28 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
         <View style={styles.viewfinderOuter}>
           <View style={styles.viewfinderInner}>
 
-            {capturedUri ? (
-              <>
-                <Image
-                  source={{ uri: capturedUri }}
-                  style={styles.capturedImage}
-                />
+            <Camera
+              ref={cameraRef}
+              style={StyleSheet.absoluteFill}
+            />
 
-                <TouchableOpacity
-                  style={styles.retakeOverlay}
-                  onPress={handleRetake}
-                >
-                  <Text style={styles.retakeText}>
-                    ↺ Retake
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                {/* CAMERA */}
-                <Camera
-                  ref={cameraRef}
-                  style={StyleSheet.absoluteFill}
-                />
+            <View
+              pointerEvents="none"
+              style={styles.placeholderOverlay}
+            >
+              <Image
+                source={require('../../assets/cameraIcon.png')}
+                style={styles.cameraIconImage}
+              />
 
-                {/* CAMERA OVERLAY */}
-                <View
-                  pointerEvents="none"
-                  style={styles.placeholderOverlay}
-                >
-                  <Image source={require('../../assets/cameraIcon.png')} style={styles.cameraIconImage} />
-
-                  <Text style={styles.placeholderText}>
-                    Position grain sample
-                  </Text>
-                </View>
-              </>
-            )}
+              <Text style={styles.placeholderText}>
+                Position grain sample
+              </Text>
+            </View>
 
           </View>
         </View>
+
       </View>
 
       {/* GUIDELINES */}
@@ -200,29 +186,18 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
         <TouchableOpacity
           style={styles.galleryBtn}
           onPress={handleGallery}
-          activeOpacity={0.8}
         >
-          <Image source={require('../../assets/galleryIcon.png')} />
-
           <Text style={styles.galleryText}>
             Gallery
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.captureBtn,
-            !!capturedUri && styles.proceedBtn,
-          ]}
-          onPress={capturedUri ? handleProceed : handleCapture}
-          activeOpacity={0.85}
+          style={styles.captureBtn}
+          onPress={handleCapture}
         >
-          <Text style={styles.captureIcon}>
-            <Image source={require('../../assets/cameraIcon2.png')} />
-          </Text>
-
           <Text style={styles.captureText}>
-            {capturedUri ? 'Use Photo' : 'Capture'}
+            Capture
           </Text>
         </TouchableOpacity>
 
@@ -238,7 +213,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D1117',
   },
 
-  // HEADER
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,7 +229,6 @@ const styles = StyleSheet.create({
   backArrow: {
     color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '300',
   },
 
   headerTitle: {
@@ -264,7 +237,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // INFO BANNER
   infoBanner: {
     backgroundColor: '#161B22',
     borderRadius: 12,
@@ -279,21 +251,19 @@ const styles = StyleSheet.create({
     color: '#E6EDF3',
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 3,
   },
 
   infoLine2: {
     color: '#8B949E',
     fontSize: 13,
+    marginTop: 3,
   },
 
-  // CAMERA SECTION
   cameraSection: {
     flex: 1,
     paddingHorizontal: 16,
   },
 
-  // PILLS
   pillRow: {
     flexDirection: 'row',
     gap: 10,
@@ -302,6 +272,8 @@ const styles = StyleSheet.create({
 
   pill: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#21262D',
     borderRadius: 999,
     paddingHorizontal: 14,
@@ -310,13 +282,18 @@ const styles = StyleSheet.create({
     borderColor: '#30363D',
   },
 
+  pillIcon: {
+    width: 16,
+    height: 16,
+    resizeMode: 'contain',
+  },
+
   pillText: {
     color: '#E6EDF3',
     fontSize: 13,
     fontWeight: '500',
   },
 
-  // VIEWFINDER
   viewfinderOuter: {
     flex: 1,
     padding: 3,
@@ -329,10 +306,8 @@ const styles = StyleSheet.create({
     borderColor: '#444C56',
     borderStyle: 'dashed',
     overflow: 'hidden',
-    backgroundColor: '#161B22',
   },
 
-  // OVERLAY
   placeholderOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
@@ -342,9 +317,9 @@ const styles = StyleSheet.create({
   cameraIconImage: {
     width: 72,
     height: 72,
-    marginBottom: 14,
     resizeMode: 'contain',
     opacity: 0.7,
+    marginBottom: 14,
   },
 
   placeholderText: {
@@ -353,31 +328,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // CAPTURED IMAGE
-  capturedImage: {
-    ...StyleSheet.absoluteFillObject,
-    resizeMode: 'cover',
-  },
-
-  retakeOverlay: {
-    position: 'absolute',
-    bottom: 16,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-
-  retakeText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // GUIDELINES
   guidelinesCard: {
     backgroundColor: '#161B22',
     borderTopLeftRadius: 20,
@@ -425,69 +375,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // FOOTER
   footer: {
     flexDirection: 'row',
     gap: 12,
     padding: 14,
     backgroundColor: '#161B22',
-    borderTopWidth: 1,
-    borderTopColor: '#21262D',
   },
 
   galleryBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
     backgroundColor: '#21262D',
     borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: '#30363D',
-  },
-
-  galleryIcon: {
-    fontSize: 18,
   },
 
   galleryText: {
-    color: '#E6EDF3',
-    fontSize: 15,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 
   captureBtn: {
     flex: 1.4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
     backgroundColor: GREEN,
     borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 16,
-    shadowColor: '#006228',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-
-  proceedBtn: {
-    backgroundColor: '#006228',
-  },
-
-  captureIcon: {
-    fontSize: 18,
   },
 
   captureText: {
     color: '#FFFFFF',
-    fontSize: 15,
     fontWeight: '700',
   },
 });
