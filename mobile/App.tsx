@@ -1,16 +1,42 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Button, ScrollView, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import { initDatabase } from './src/db/database';
+
 import { SessionRepository } from './src/db/repositories/SessionRepository';
 import { SampleRepository } from './src/db/repositories/SampleRepository';
+
 import CreateSessionScreen from './src/app/CreateSessionScreen';
 import LoginScreen from './src/app/LoginScreen';
+import SignUpScreen from './src/app/SignUpScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
 
+const Stack = createNativeStackNavigator();
+
 export default function App() {
-  return <LoginScreen />;
+    return (
+    <NavigationContainer>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+        />
+
+        <Stack.Screen
+          name="SignUp"
+          component={SignUpScreen}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
   // const [logs, setLogs] = useState<string[]>([]);
 
   // const log = (msg: string) => setLogs(prev => [...prev, msg]);

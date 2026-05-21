@@ -14,7 +14,7 @@ import {
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-const GREEN = '#00A63E';
+const GREEN = '#008236';
 
 export default function CreateSessionScreen() {
   const [loading] = useState(false);

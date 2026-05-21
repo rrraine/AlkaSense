@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -95,7 +95,7 @@ export default function LoginScreen() {
             <Text style={styles.signupText}>
               Don't have an account?{" "}
             </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
               <Text style={styles.signupLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
