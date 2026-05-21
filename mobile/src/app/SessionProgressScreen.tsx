@@ -425,7 +425,7 @@ export default function SessionProgressScreen({
 
       {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.registerBtn}>
+        <TouchableOpacity style={styles.registerBtn} onPress={() => navigation.navigate("RegisterSample")}>
           <Text style={styles.registerBtnText}>
             + Register New Sample
           </Text>
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
   },
 
   sampleId: {
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111827',
   },
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
   },
 
   sampleVariety: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#4B5563',
     marginBottom: 2,
   },
