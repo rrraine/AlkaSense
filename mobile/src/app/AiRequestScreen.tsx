@@ -190,7 +190,7 @@ export default function AiRequestScreen({ navigation, route }: any) {
   const observationRows = buildObservationRows(answers);
 
   function handleRequestDraft() {
-    navigation.navigate('AIScoreResult', {
+    navigation.navigate('AiDraftLoading', {
       imageUri,
       sampleId,
       variety,
