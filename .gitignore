@@ -29,8 +29,11 @@ backend/src/core/secrets/serviceAccountKey.json
 
 
 # ML
-ml/dataset/
+ml/alkasense_dataset/
 *.tflite
+ml/.env
+ml/__pycache__/
+
 
 # macOS
 .DS_Store
