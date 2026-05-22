@@ -89,7 +89,7 @@ const CORRECTION_LOG: CorrectionEntry[] = [
   },
 ];
 
-const FILTER_OPTIONS = ['All Corrections', 'Today', 'This Week', 'This Month', 'Downward', 'Upward'];
+const FILTER_OPTIONS = ['All Corrections', 'Today', 'This Week', 'This Month'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -268,7 +268,7 @@ export default function CorrectionLogScreen({ navigation }: any) {
             activeOpacity={0.75}
             // TODO: wire to export handler
           >
-            <Text style={styles.exportIcon}>⬇</Text>
+            <Text style={styles.exportIcon}>Export</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -288,7 +288,7 @@ export default function CorrectionLogScreen({ navigation }: any) {
               key={entry.id}
               entry={entry}
               onPress={() =>
-                navigation.navigate('ScoreCorrection', {
+                navigation.navigate('SamplePreview', {
                   sampleId: entry.sampleId,
                   variety: entry.variety,
                   originalASV: entry.correctedScore,

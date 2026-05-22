@@ -449,7 +449,7 @@ export default function SessionProgressScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryBtn}>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('CorrectionLog')}>
               <Text style={styles.secondaryBtnText}>
                 📋{'\n'}Corrections
               </Text>
