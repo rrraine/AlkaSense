@@ -211,7 +211,7 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
     t4 = setTimeout(() => {
       // Navigate to the next screen once all steps are complete
       // Adjust target + params as needed for your navigator
-      navigation?.navigate('ManualScore', route?.params ?? {});
+      navigation?.navigate('AiDraftResult', route?.params ?? {});
     }, d0 + d1 + d2 + 600);
 
     return () => {
