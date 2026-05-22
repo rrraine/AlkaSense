@@ -15,24 +15,36 @@ import {
 
 const GREEN = '#008236';
 
-// ─── Answers type (mirrors ExpertObservationScreen) ───────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
 type Answers = {
-  spreadingPattern:  string | null;
+  spreadingPattern: string | null;
   grainTranslucency: string | null;
-  scoreUniformity:   string | null;
-  kohSolution:       string | null;
-  anomalyFlags:      string[];
+  scoreUniformity: string | null;
+  kohSolution: string | null;
+  anomalyFlags: string[];
 };
 
-// Human-readable labels for each observation dimension
-const OBS_LABELS: Record<keyof Omit<Answers, 'anomalyFlags'>, string> = {
-  spreadingPattern:  'Spreading Pattern Texture',
+// ─────────────────────────────────────────────────────────────────────────────
+// Observation Labels
+// ─────────────────────────────────────────────────────────────────────────────
+
+const OBS_LABELS: Record<
+  keyof Omit<Answers, 'anomalyFlags'>,
+  string
+> = {
+  spreadingPattern: 'Spreading Pattern Texture',
   grainTranslucency: 'Grain Translucency',
-  scoreUniformity:   'Within-dish Score Uniformity',
-  kohSolution:       'KOH Solution Appearance',
+  scoreUniformity: 'Within-dish Score Uniformity',
+  kohSolution: 'KOH Solution Appearance',
 };
 
-// ─── ASV Scale ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ASV Scale
+// ─────────────────────────────────────────────────────────────────────────────
+
 const ASV_SCALE: { score: number; label: string }[] = [
   { score: 1, label: 'High GT (>74°C)' },
   { score: 2, label: 'High GT (>74°C)' },
@@ -44,12 +56,15 @@ const ASV_SCALE: { score: number; label: string }[] = [
 ];
 
 function getGTLabel(score: number) {
-  if (score <= 2) return `High GT (>74°C)`;
-  if (score <= 5) return `Intermediate GT (70-74°C)`;
-  return `Low GT (<70°C)`;
+  if (score <= 2) return 'High GT (>74°C)';
+  if (score <= 5) return 'Intermediate GT (70-74°C)';
+  return 'Low GT (<70°C)';
 }
 
-// ─── Warning Banner ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Warning Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
 function WarningBanner({
   title,
   children,
@@ -59,72 +74,171 @@ function WarningBanner({
   children: React.ReactNode;
   color: 'yellow' | 'orange';
 }) {
-  const bg     = color === 'yellow' ? '#FFFBEB' : '#FFF7ED';
+  const bg = color === 'yellow' ? '#FFFBEB' : '#FFF7ED';
   const border = color === 'yellow' ? '#FCD34D' : '#FDBA74';
   const titleC = color === 'yellow' ? '#92400E' : '#9A3412';
-  const textC  = color === 'yellow' ? '#78350F' : '#7C2D12';
+  const textC = color === 'yellow' ? '#78350F' : '#7C2D12';
 
   return (
-    <View style={[styles.warningBanner, { backgroundColor: bg, borderColor: border }]}>
+    <View
+      style={[
+        styles.warningBanner,
+        {
+          backgroundColor: bg,
+          borderColor: border,
+        },
+      ]}
+    >
       <View style={styles.warningTitleRow}>
-        <Text style={[styles.warningIcon, { color: titleC }]}>⚠</Text>
-        <Text style={[styles.warningTitle, { color: titleC }]}>{title}</Text>
+        <Text
+          style={[
+            styles.warningIcon,
+            { color: titleC },
+          ]}
+        >
+          ⚠
+        </Text>
+
+        <Text
+          style={[
+            styles.warningTitle,
+            { color: titleC },
+          ]}
+        >
+          {title}
+        </Text>
       </View>
+
       <View style={{ marginLeft: 26 }}>
-        <Text style={[styles.warningBody, { color: textC }]}>{children}</Text>
+        <Text
+          style={[
+            styles.warningBody,
+            { color: textC },
+          ]}
+        >
+          {children}
+        </Text>
       </View>
     </View>
   );
 }
 
-// ─── Observation Row ──────────────────────────────────────────────────────────
-function ObservationRow({ label, value }: { label: string; value: string }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Observation Row
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ObservationRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
     <View style={styles.obsRow}>
-      <Text style={styles.obsLabel}>{label}</Text>
-      <Text style={styles.obsValue}>{value}</Text>
+      <Text style={styles.obsLabel}>
+        {label}
+      </Text>
+
+      <Text style={styles.obsValue}>
+        {value}
+      </Text>
     </View>
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function AiScoreConfirmation({ navigation, route }: any) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function AiScoreConfirmation({
+  navigation,
+  route,
+}: any) {
+
   const {
     imageUri,
-    sampleId         = 'S003',
-    variety          = 'NSIC Rc 222',
-    grainCount       = '10',
-    session          = 'Spring Harvest 2026',
-    aiDraftScore     = 5,
+    sampleId = 'S003',
+    variety = 'NSIC Rc 222',
+    grainCount = '10',
+    session = 'Spring Harvest 2026',
+
+    // AI DATA
+    aiDraftScore = 5,
     calibratedCertainty = 58,
-    hasConfidenceWarning  = true,
+    hasConfidenceWarning = true,
     hasObservationConflict = true,
-    conflictDimensions = ['Spreading Pattern Texture', 'Grain Translucency'],
+    conflictDimensions = [
+      'Spreading Pattern Texture',
+      'Grain Translucency',
+    ],
+
+    // USER OBSERVATIONS
+    answers = {
+      spreadingPattern: null,
+      grainTranslucency: null,
+      scoreUniformity: null,
+      kohSolution: null,
+      anomalyFlags: [],
+    },
+
   } = route?.params ?? {};
 
-  const [selectedScore, setSelectedScore]         = useState<number | null>(null);
-  const [deviationRemark, setDeviationRemark]     = useState('');
-  const [conflictRemark, setConflictRemark]       = useState('');
+  // ───────────────────────────────────────────────────────────────────────────
+  // State
+  // ───────────────────────────────────────────────────────────────────────────
 
-  // Derived booleans
-  const hasDeviation      = selectedScore !== null && selectedScore !== aiDraftScore;
-  const needsDeviation    = hasDeviation;
-  const needsConflict     = hasObservationConflict;
+  const [selectedScore, setSelectedScore] =
+    useState<number | null>(null);
 
-  // Validation
+  const [deviationRemark, setDeviationRemark] =
+    useState('');
+
+  const [conflictRemark, setConflictRemark] =
+    useState('');
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Derived State
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const hasDeviation =
+    selectedScore !== null &&
+    selectedScore !== aiDraftScore;
+
+  const needsDeviation = hasDeviation;
+
+  const needsConflict =
+    hasObservationConflict;
+
   const isValid =
     selectedScore !== null &&
-    (!needsDeviation || deviationRemark.trim().length > 0) &&
-    (!needsConflict  || conflictRemark.trim().length > 0);
+    (!needsDeviation ||
+      deviationRemark.trim().length > 0) &&
+    (!needsConflict ||
+      conflictRemark.trim().length > 0);
 
-  // Pulse animation on confirm button when valid
-  const pulse = useRef(new Animated.Value(1)).current;
+  // ───────────────────────────────────────────────────────────────────────────
+  // Pulse Animation
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const pulse = useRef(
+    new Animated.Value(1)
+  ).current;
+
   useEffect(() => {
     if (isValid) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulse, { toValue: 1.02, duration: 700, useNativeDriver: true }),
-          Animated.timing(pulse, { toValue: 1,    duration: 700, useNativeDriver: true }),
+          Animated.timing(pulse, {
+            toValue: 1.02,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulse, {
+            toValue: 1,
+            duration: 700,
+            useNativeDriver: true,
+          }),
         ])
       ).start();
     } else {
@@ -132,275 +246,620 @@ export default function AiScoreConfirmation({ navigation, route }: any) {
     }
   }, [isValid]);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Handlers
+  // ───────────────────────────────────────────────────────────────────────────
+
   function handleConfirm() {
     if (!isValid) return;
-    navigation?.navigate('ScoreConfirmed', {
-      imageUri,
-      sampleId,
-      variety,
-      grainCount,
-      session,
-      aiDraftScore,
-      finalScore: selectedScore,
-      deviationRemark,
-      conflictRemark,
-    });
+
+    navigation?.navigate(
+      'ScoreConfirmed',
+      {
+        imageUri,
+        sampleId,
+        variety,
+        grainCount,
+        session,
+
+        aiDraftScore,
+        finalScore: selectedScore,
+
+        deviationRemark,
+        conflictRemark,
+
+        answers,
+      }
+    );
   }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Observation Values
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const anomalyDisplay =
+    answers.anomalyFlags?.length > 0
+      ? answers.anomalyFlags.join(', ')
+      : 'None';
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={
+        Platform.OS === 'ios'
+          ? 'padding'
+          : 'height'
+      }
     >
       <View style={styles.root}>
         <StatusBar barStyle="light-content" />
 
-        {/* ── HEADER ── */}
+        {/* ───────────────── HEADER ───────────────── */}
         <View style={styles.header}>
+
           <View style={styles.headerTopRow}>
-            <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn}>
-              <Text style={styles.backArrow}>←</Text>
+
+            <TouchableOpacity
+              onPress={() =>
+                navigation?.goBack()
+              }
+              style={styles.backBtn}
+            >
+              <Text style={styles.backArrow}>
+                ←
+              </Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Score Confirmation</Text>
+
+            <Text style={styles.headerTitle}>
+              Score Confirmation
+            </Text>
+
             <View style={{ width: 32 }} />
+
           </View>
 
-          <Text style={styles.headerSubtitle}>Sample {sampleId}</Text>
+          <Text style={styles.headerSubtitle}>
+            Sample {sampleId}
+          </Text>
 
-          {/* Info banner */}
+          {/* INFO BANNER */}
           <View style={styles.infoBanner}>
+
             <View style={{ flex: 1 }}>
               <Text style={styles.infoBannerLine1}>
-                {sampleId} • {variety} • {grainCount} grains
+                {sampleId} • {variety} •{' '}
+                {grainCount} grains
               </Text>
-              <Text style={styles.infoBannerLine2}>Session: {session}</Text>
+
+              <Text style={styles.infoBannerLine2}>
+                Session: {session}
+              </Text>
             </View>
-            {imageUri && (
+
+            {imageUri ? (
               <View style={styles.thumbnailContainer}>
-                <Image source={{ uri: imageUri }} style={styles.thumbnail} resizeMode="cover" />
+                <Image
+                  source={{ uri: imageUri }}
+                  style={styles.thumbnail}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.thumbnailContainer,
+                  styles.thumbnailPlaceholder,
+                ]}
+              >
+                <Text
+                  style={{
+                    color:
+                      'rgba(255,255,255,0.6)',
+                    fontSize: 20,
+                  }}
+                >
+                  🌾
+                </Text>
               </View>
             )}
-            {!imageUri && (
-              <View style={[styles.thumbnailContainer, styles.thumbnailPlaceholder]}>
-                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 20 }}>🌾</Text>
-              </View>
-            )}
+
           </View>
+
         </View>
 
-        {/* ── SCROLL BODY ── */}
+        {/* ───────────────── BODY ───────────────── */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={
+            styles.scrollContent
+          }
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
 
-          {/* ── AI DRAFT REFERENCE CARD ── */}
+          {/* ───────────────── AI CARD ───────────────── */}
           <View style={styles.card}>
+
             <View style={styles.cardTitleRow}>
-              <Text style={styles.cardTitleIcon}>✦</Text>
-              <Text style={styles.cardTitle}>AI Draft Reference</Text>
+
+              <Text style={styles.cardTitleIcon}>
+                ✦
+              </Text>
+
+              <Text style={styles.cardTitle}>
+                AI Draft Reference
+              </Text>
+
             </View>
 
-            {/* Score + Certainty */}
+            {/* SCORE */}
             <View style={styles.draftScoreRow}>
+
               <View>
-                <Text style={styles.draftScoreCaption}>Draft ASV Score</Text>
-                <Text style={styles.draftScoreValue}>{aiDraftScore}</Text>
+                <Text style={styles.draftScoreCaption}>
+                  Draft ASV Score
+                </Text>
+
+                <Text style={styles.draftScoreValue}>
+                  {aiDraftScore}
+                </Text>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.certaintyCaption}>Certainty</Text>
-                <Text style={styles.certaintyValue}>{calibratedCertainty}%</Text>
+
+              <View
+                style={{
+                  alignItems: 'flex-end',
+                }}
+              >
+                <Text style={styles.certaintyCaption}>
+                  Certainty
+                </Text>
+
+                <Text style={styles.certaintyValue}>
+                  {calibratedCertainty}%
+                </Text>
               </View>
+
             </View>
 
-            {/* GT Classification */}
+            {/* GT */}
             <View style={styles.gtBox}>
-              <Text style={styles.gtCaption}>GT Classification</Text>
-              <Text style={styles.gtValue}>{getGTLabel(aiDraftScore)}</Text>
+
+              <Text style={styles.gtCaption}>
+                GT Classification
+              </Text>
+
+              <Text style={styles.gtValue}>
+                {getGTLabel(aiDraftScore)}
+              </Text>
+
             </View>
 
-            {/* Warnings */}
+            {/* WARNINGS */}
             {hasConfidenceWarning && (
-              <WarningBanner title="Model Confidence Warning" color="yellow">
-                {''}
+              <WarningBanner
+                title="Model Confidence Warning"
+                color="yellow"
+              >
+                Low AI certainty detected.
+                Human validation is strongly
+                recommended.
               </WarningBanner>
             )}
 
             {hasObservationConflict && (
-              <View style={styles.conflictBannerOuter}>
-                <WarningBanner title="Observation Conflict" color="orange">
-                  {`Conflicts: ${conflictDimensions.join(', ')}`}
+              <View
+                style={styles.conflictBannerOuter}
+              >
+                <WarningBanner
+                  title="Observation Conflict"
+                  color="orange"
+                >
+                  {`Conflicts: ${conflictDimensions.join(
+                    ', '
+                  )}`}
                 </WarningBanner>
               </View>
             )}
 
-            {/* View Visual Evidence */}
+            {/* VISUAL EVIDENCE */}
             <TouchableOpacity
               style={styles.visualEvidenceBtn}
-              onPress={() => navigation?.navigate('AiExplainability', route?.params ?? {})}
+              onPress={() =>
+                navigation?.navigate(
+                  'AiExplainability',
+                  route?.params ?? {}
+                )
+              }
             >
-              <Text style={styles.visualEvidenceIcon}>👁</Text>
-              <Text style={styles.visualEvidenceText}>View Visual Evidence</Text>
+
+              <Text
+                style={
+                  styles.visualEvidenceIcon
+                }
+              >
+                👁
+              </Text>
+
+              <Text
+                style={
+                  styles.visualEvidenceText
+                }
+              >
+                View Visual Evidence
+              </Text>
+
             </TouchableOpacity>
+
           </View>
 
-          {/* ── OBSERVATION PROFILE SUMMARY ── */}
+          {/* ───────────────── OBS SUMMARY ───────────────── */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Observation Profile Summary</Text>
+            <Text style={styles.sectionTitle}>
+              Observation Profile Summary
+            </Text>
           </View>
 
           <View style={styles.obsCard}>
-            <ObservationRow label="Spreading Pattern Texture" value="Smooth and Continuous" />
+
+            <ObservationRow
+              label={
+                OBS_LABELS.spreadingPattern
+              }
+              value={
+                answers.spreadingPattern ??
+                'Not provided'
+              }
+            />
+
             <View style={styles.obsDivider} />
-            <ObservationRow label="Grain Translucency" value="Fully Translucent" />
+
+            <ObservationRow
+              label={
+                OBS_LABELS.grainTranslucency
+              }
+              value={
+                answers.grainTranslucency ??
+                'Not provided'
+              }
+            />
+
             <View style={styles.obsDivider} />
-            <ObservationRow label="Within-dish Score Uniformity" value="Uniform" />
+
+            <ObservationRow
+              label={
+                OBS_LABELS.scoreUniformity
+              }
+              value={
+                answers.scoreUniformity ??
+                'Not provided'
+              }
+            />
+
             <View style={styles.obsDivider} />
-            <ObservationRow label="Anomaly Flags" value="No Anomaly" />
+
+            <ObservationRow
+              label="Anomaly Flags"
+              value={anomalyDisplay}
+            />
+
             <View style={styles.obsDivider} />
-            <ObservationRow label="KOH Solution Appearance" value="Clear" />
+
+            <ObservationRow
+              label={
+                OBS_LABELS.kohSolution
+              }
+              value={
+                answers.kohSolution ??
+                'Not provided'
+              }
+            />
+
           </View>
 
-          {/* ── FINAL ASV SCORE PICKER ── */}
+          {/* ───────────────── SCORE PICKER ───────────────── */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Final ASV Score</Text>
+            <Text style={styles.sectionTitle}>
+              Final ASV Score
+            </Text>
           </View>
 
           <View style={styles.scorePickerRow}>
+
             {ASV_SCALE.map(({ score }) => {
-              const isSelected = selectedScore === score;
+
+              const isSelected =
+                selectedScore === score;
+
               return (
                 <TouchableOpacity
                   key={score}
-                  style={[styles.scoreChip, isSelected && styles.scoreChipSelected]}
-                  onPress={() => setSelectedScore(score)}
+                  style={[
+                    styles.scoreChip,
+                    isSelected &&
+                      styles.scoreChipSelected,
+                  ]}
+                  onPress={() =>
+                    setSelectedScore(score)
+                  }
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.scoreChipText, isSelected && styles.scoreChipTextSelected]}>
+
+                  <Text
+                    style={[
+                      styles.scoreChipText,
+                      isSelected &&
+                        styles.scoreChipTextSelected,
+                    ]}
+                  >
                     {score}
                   </Text>
+
                 </TouchableOpacity>
               );
             })}
+
           </View>
 
-          {/* Selected score label */}
+          {/* SELECTED SCORE */}
           {selectedScore !== null && (
             <View style={styles.selectedScoreInfo}>
-              <Text style={styles.selectedScoreInfoText}>
+
+              <Text
+                style={
+                  styles.selectedScoreInfoText
+                }
+              >
                 Selected: ASV {selectedScore}
               </Text>
-              <Text style={styles.selectedScoreGT}>{getGTLabel(selectedScore)}</Text>
+
+              <Text
+                style={
+                  styles.selectedScoreGT
+                }
+              >
+                {getGTLabel(selectedScore)}
+              </Text>
+
             </View>
           )}
 
-          {/* ── SCORE DEVIATION SECTION ── */}
+          {/* ───────────────── DEVIATION ───────────────── */}
           {needsDeviation && (
-            <View style={[styles.alertCard, styles.alertCardOrange]}>
-              <View style={styles.alertCardTitleRow}>
-                <Text style={styles.alertIcon}>⚠</Text>
-                <Text style={[styles.alertCardTitle, { color: '#9A3412' }]}>
+            <View
+              style={[
+                styles.alertCard,
+                styles.alertCardOrange,
+              ]}
+            >
+
+              <View
+                style={
+                  styles.alertCardTitleRow
+                }
+              >
+
+                <Text style={styles.alertIcon}>
+                  ⚠
+                </Text>
+
+                <Text
+                  style={[
+                    styles.alertCardTitle,
+                    { color: '#9A3412' },
+                  ]}
+                >
                   Score Deviation Detected
                 </Text>
+
               </View>
-              <Text style={styles.alertCardBody}>
-                Your selected score ({selectedScore}) differs from the AI draft ({aiDraftScore}).{'\n'}
-                Please explain the reason for this deviation.
+
+              <Text
+                style={styles.alertCardBody}
+              >
+                Your selected score (
+                {selectedScore}) differs
+                from the AI draft (
+                {aiDraftScore}).
+                {'\n'}
+                Please explain the reason
+                for this deviation.
               </Text>
 
-              <Text style={styles.inputLabel}>Score Deviation Remark *</Text>
+              <Text style={styles.inputLabel}>
+                Score Deviation Remark *
+              </Text>
+
               <TextInput
                 style={[
                   styles.textArea,
-                  deviationRemark.trim().length > 0 && styles.textAreaFilled,
+                  deviationRemark.trim()
+                    .length > 0 &&
+                    styles.textAreaFilled,
                 ]}
                 placeholder="Explain why you are deviating from the AI draft"
                 placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={3}
                 value={deviationRemark}
-                onChangeText={setDeviationRemark}
+                onChangeText={
+                  setDeviationRemark
+                }
                 textAlignVertical="top"
               />
+
             </View>
           )}
 
-          {/* ── OBSERVATION CONFLICT RESOLUTION ── */}
+          {/* ───────────────── CONFLICT ───────────────── */}
           {needsConflict && (
-            <View style={[styles.alertCard, styles.alertCardOrange]}>
-              <View style={styles.alertCardTitleRow}>
-                <Text style={styles.alertIcon}>⚠</Text>
-                <Text style={[styles.alertCardTitle, { color: '#9A3412' }]}>
-                  Observation Conflict Resolution{'\n'}Required
+            <View
+              style={[
+                styles.alertCard,
+                styles.alertCardOrange,
+              ]}
+            >
+
+              <View
+                style={
+                  styles.alertCardTitleRow
+                }
+              >
+
+                <Text style={styles.alertIcon}>
+                  ⚠
                 </Text>
+
+                <Text
+                  style={[
+                    styles.alertCardTitle,
+                    { color: '#9A3412' },
+                  ]}
+                >
+                  Observation Conflict
+                  Resolution Required
+                </Text>
+
               </View>
-              <Text style={styles.alertCardBody}>
-                The following observation dimensions conflict with the draft score:
-              </Text>
-              {conflictDimensions.map((dim: string) => (
-                <Text key={dim} style={styles.conflictDim}>• {dim}</Text>
-              ))}
-              <Text style={[styles.alertCardBody, { marginTop: 6 }]}>
-                Please address and resolve this conflict in your remarks.
+
+              <Text
+                style={styles.alertCardBody}
+              >
+                The following observation
+                dimensions conflict with
+                the draft score:
               </Text>
 
-              <Text style={styles.inputLabel}>Conflict Resolution Remark *</Text>
+              {conflictDimensions.map(
+                (dim: string) => (
+                  <Text
+                    key={dim}
+                    style={styles.conflictDim}
+                  >
+                    • {dim}
+                  </Text>
+                )
+              )}
+
+              <Text
+                style={[
+                  styles.alertCardBody,
+                  { marginTop: 6 },
+                ]}
+              >
+                Please address and resolve
+                this conflict in your
+                remarks.
+              </Text>
+
+              <Text style={styles.inputLabel}>
+                Conflict Resolution Remark
+                *
+              </Text>
+
               <TextInput
                 style={[
                   styles.textArea,
-                  conflictRemark.trim().length > 0 && styles.textAreaFilled,
+                  conflictRemark.trim()
+                    .length > 0 &&
+                    styles.textAreaFilled,
                 ]}
-                placeholder="Explain how you have resolved the observation"
+                placeholder="Explain how you resolved the observation conflict"
                 placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={3}
                 value={conflictRemark}
-                onChangeText={setConflictRemark}
+                onChangeText={
+                  setConflictRemark
+                }
                 textAlignVertical="top"
               />
+
             </View>
           )}
 
-          {/* Bottom padding for footer */}
           <View style={{ height: 100 }} />
+
         </ScrollView>
 
-        {/* ── CONFIRM BUTTON FOOTER ── */}
+        {/* ───────────────── FOOTER ───────────────── */}
         <View style={styles.footer}>
-          <Animated.View style={{ width: '100%', transform: [{ scale: pulse }] }}>
+
+          <Animated.View
+            style={{
+              width: '100%',
+              transform: [
+                { scale: pulse },
+              ],
+            }}
+          >
+
             <TouchableOpacity
-              style={[styles.confirmBtn, !isValid && styles.confirmBtnDisabled]}
+              style={[
+                styles.confirmBtn,
+                !isValid &&
+                  styles.confirmBtnDisabled,
+              ]}
               onPress={handleConfirm}
-              activeOpacity={isValid ? 0.85 : 1}
+              activeOpacity={
+                isValid ? 0.85 : 1
+              }
               disabled={!isValid}
             >
-              <Text style={styles.confirmBtnIcon}>✓</Text>
-              <Text style={styles.confirmBtnText}>Confirm Score</Text>
+
+              <Text
+                style={styles.confirmBtnIcon}
+              >
+                ✓
+              </Text>
+
+              <Text
+                style={styles.confirmBtnText}
+              >
+                Confirm Score
+              </Text>
+
             </TouchableOpacity>
+
           </Animated.View>
 
-          {!isValid && selectedScore === null && (
-            <Text style={styles.footerHint}>Select a Final ASV Score to continue</Text>
-          )}
-          {!isValid && selectedScore !== null && (
-            <Text style={styles.footerHint}>Fill in required remark fields to continue</Text>
-          )}
+          {!isValid &&
+            selectedScore === null && (
+              <Text style={styles.footerHint}>
+                Select a Final ASV Score to
+                continue
+              </Text>
+            )}
+
+          {!isValid &&
+            selectedScore !== null && (
+              <Text style={styles.footerHint}>
+                Fill in required remark
+                fields to continue
+              </Text>
+            )}
+
         </View>
+
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
+
   root: {
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
 
-  // ── HEADER ──
   header: {
     backgroundColor: GREEN,
     paddingTop: 52,
@@ -442,12 +901,14 @@ const styles = StyleSheet.create({
   },
 
   infoBanner: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor:
+      'rgba(255,255,255,0.15)',
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor:
+      'rgba(255,255,255,0.25)',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -471,14 +932,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor:
+      'rgba(255,255,255,0.4)',
     marginLeft: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   thumbnailPlaceholder: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor:
+      'rgba(255,255,255,0.2)',
   },
 
   thumbnail: {
@@ -486,12 +949,10 @@ const styles = StyleSheet.create({
     height: '100%',
   },
 
-  // ── SCROLL ──
   scrollContent: {
     padding: 16,
   },
 
-  // ── CARD ──
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -499,11 +960,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
   },
 
   cardTitleRow: {
@@ -524,7 +980,6 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // ── DRAFT SCORE ──
   draftScoreRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -558,7 +1013,6 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // ── GT BOX ──
   gtBox: {
     backgroundColor: '#F9FAFB',
     borderRadius: 10,
@@ -582,7 +1036,6 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // ── WARNING BANNER ──
   warningBanner: {
     borderRadius: 12,
     borderWidth: 1.5,
@@ -615,7 +1068,6 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 
-  // ── VISUAL EVIDENCE BUTTON ──
   visualEvidenceBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -639,7 +1091,6 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
   },
 
-  // ── SECTION HEADER ──
   sectionHeader: {
     marginTop: 16,
     marginBottom: 8,
@@ -651,14 +1102,12 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // ── OBSERVATION CARD ──
   obsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     overflow: 'hidden',
-    marginBottom: 4,
   },
 
   obsRow: {
@@ -683,7 +1132,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
 
-  // ── SCORE PICKER ──
   scorePickerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -700,11 +1148,6 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
   },
 
   scoreChipSelected: {
@@ -722,7 +1165,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // ── SELECTED SCORE INFO ──
   selectedScoreInfo: {
     backgroundColor: '#F0FFF4',
     borderRadius: 12,
@@ -746,7 +1188,6 @@ const styles = StyleSheet.create({
     color: '#14532D',
   },
 
-  // ── ALERT CARD ──
   alertCard: {
     borderRadius: 16,
     borderWidth: 1.5,
@@ -818,7 +1259,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0FFF4',
   },
 
-  // ── FOOTER ──
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -832,11 +1272,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#F3F4F6',
     alignItems: 'center',
     gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 8,
   },
 
   confirmBtn: {
@@ -871,4 +1306,5 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
   },
+
 });
