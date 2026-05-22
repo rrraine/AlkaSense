@@ -25,6 +25,7 @@ import ScoreCorrectionScreen from './src/app/ScoreCorrectionScreen';
 import CorrectionLogScreen from './src/app/CorrectionLogScreen';
 import ReferenceLibraryScreen from './src/app/ReferenceLibraryScreen';
 import BatchSummaryScreen from './src/app/BatchSummaryScreen';
+import UploadReportScreen from './src/app/UploadReportScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -56,6 +57,7 @@ export default function App() {
         <Stack.Screen name="CorrectionLog" component={CorrectionLogScreen} />
         <Stack.Screen name="ReferenceLibrary" component={ReferenceLibraryScreen} />
         <Stack.Screen name="BatchSummary" component={BatchSummaryScreen} />
+        <Stack.Screen name="UploadReport" component={UploadReportScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

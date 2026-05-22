@@ -297,7 +297,7 @@ export default function BatchSummaryScreen({ navigation }: any) {
           <Text style={styles.exportIcon}>⬇</Text>
           <Text style={styles.exportBtnText}>Export CSV</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.uploadBtn}>
+        <TouchableOpacity style={styles.uploadBtn} onPress={() => navigation.navigate('UploadReport')}>
           <Text style={styles.uploadIcon}>⬆</Text>
           <Text style={styles.uploadBtnText}>Upload Report</Text>
         </TouchableOpacity>
