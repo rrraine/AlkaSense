@@ -256,7 +256,7 @@ function CorrectiveGuidance({ message }: { message: string }) {
 export default function ValidationResultScreen({ navigation, route }: any) {
   const { imageUri, sampleId, variety, grainCount, session } = route.params;
 
-  // 🚩 Replace MOCK_VALIDATION_STATUS with backend result when ready:
+  // Replace MOCK_VALIDATION_STATUS with backend result when ready:
   // const validationStatus: ValidationStatus = route.params.validationStatus ?? MOCK_VALIDATION_STATUS;
   const validationStatus: ValidationStatus = MOCK_VALIDATION_STATUS;
 
@@ -266,7 +266,7 @@ export default function ValidationResultScreen({ navigation, route }: any) {
   const errorConfig = !isAccepted ? (config as ErrorConfig) : null;
 
   function handleProceed() {
-    navigation.navigate('AnalysisResult', { imageUri, sampleId, variety, grainCount, session });
+    navigation.navigate('ExpertObservation', { imageUri, sampleId, variety, grainCount, session });
   }
 
   function handleRecapture() {
