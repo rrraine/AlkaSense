@@ -89,6 +89,8 @@ alkasense/
 │   ├── export_tflite.py            # Convert to TFLite + quantize
 │   ├── watcher.py                  # File system watcher (new uploads)
 │   └── sync_trigger.py             # Connectivity watcher (online event)
+|   └── explain.py                  # for LLM explainability AI
+|   └── gradcam_validate.py         # for gradCam set up
 │
 ├── config/
 │   └── alkasense_config.yaml       # All hyperparameters & paths
@@ -121,6 +123,12 @@ Install with:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Create a .env file
+
+```
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxx
 ```
 
 ### 3.2 Configuration File

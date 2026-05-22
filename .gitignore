@@ -10,5 +10,7 @@ backend/.env
 backend/__pycache__/
 
 # ML
-ml/dataset/
+ml/alkasense_dataset/
 *.tflite
+ml/.env
+ml/__pycache__/

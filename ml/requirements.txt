@@ -9,3 +9,6 @@ watchdog>=3.0.0          # File system watcher
 requests>=2.31.0         # Connectivity check
 tensorboard>=2.13.0
 numpy>=1.24.0
+
+anthropic>=0.40.0
+python-dotenv>=1.0.0    # for loading .env safely
