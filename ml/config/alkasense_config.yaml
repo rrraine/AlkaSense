@@ -1,0 +1,44 @@
+# config/alkasense_config.yaml
+
+dataset:
+  raw_dir: "data/raw"
+  organized_dir: "data/organized"
+  splits_dir: "data/splits"
+  upload_queue_dir: "data/upload_queue"
+  classes: ["asv_1", "asv_2", "asv_3", "asv_4", "asv_5", "asv_6", "asv_7"]
+  split_ratios: [0.70, 0.15, 0.15]   # train / val / test
+  min_samples_per_class: 30           # warn if below this threshold
+  seed: 42
+
+model:
+  architecture: "EfficientNetB1"
+  input_size: [240, 240]
+  num_classes: 7                      # ASV scores 1–7 (IRRI scale)
+  dropout_rate: 0.3
+  weights: "imagenet"
+
+training:
+  batch_size: 16
+  phase1_epochs: 20                   # frozen base
+  phase2_epochs: 30                   # fine-tune
+  phase1_lr: 0.001
+  phase2_lr: 0.00001
+  early_stopping_patience: 7
+  unfreeze_last_n_layers: 20
+
+export:
+  saved_model_dir: "models/exported"
+  tflite_dir: "models/tflite"
+  tflite_filename: "alkasense_v{version}.tflite"
+  quantize: true                      # INT8 quantization for Android
+
+logging:
+  tensorboard_dir: "logs/training"
+  system_log: "logs/system/events.log"
+
+triggers:
+  connectivity_check_interval_sec: 60
+  connectivity_check_url: "https://www.google.com"
+  auto_train_on_new_data: true
+  auto_train_on_reconnect: true
+  min_new_samples_to_trigger: 5       # retrain only if ≥5 new images
