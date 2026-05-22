@@ -221,7 +221,7 @@ export default function SamplePreviewScreen({ navigation, route }: any) {
         <TouchableOpacity
           style={styles.correctBtn}
           onPress={() =>
-            navigation.navigate('ManualScore', {
+            navigation.navigate('ScoreCorrection', {
               sampleId:   id,
               variety,
               grainCount: route.params?.grainCount ?? '10',
