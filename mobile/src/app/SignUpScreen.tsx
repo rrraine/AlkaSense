@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../core/firebase";
+import { registerUser } from "../core/api/auth";
 import {
   View,
   Text,
@@ -54,36 +55,26 @@ export default function SignUpScreen({ navigation }: any) {
     const idToken = await firebaseUser.getIdToken();
 
     // 3. Send to backend
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/auth/register`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          firebase_uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          full_name: fullName,
-          role,
-          institution,
-        }),
-      }
-    );
+    const backendUser = await registerUser(idToken, {
+  firebase_uid: firebaseUser.uid,
+  email: firebaseUser.email,
+  full_name: fullName,
+  role,
+  institution,
+});
 
-    const data = await response.text();
-    console.log("BACKEND RESPONSE:", data);
+console.log("BACKEND RESPONSE:", backendUser);
 
-    if (!response.ok) {
-      throw new Error(`Backend failed: ${data}`);
-    }
 
+    // 4. Navigate to dashboard
     navigation.navigate("Dashboard");
+
   } catch (error: any) {
-    console.log(error);
+    console.log(
+      "SIGNUP ERROR:",
+      JSON.stringify(error, null, 2)
+    );
   }
-  console.log("API URL:", process.env.EXPO_PUBLIC_API_URL);
 }
 
   return (
