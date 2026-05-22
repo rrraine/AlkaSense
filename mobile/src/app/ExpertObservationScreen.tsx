@@ -324,9 +324,11 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ── ASV REFERENCE LINK ── */}
-        <TouchableOpacity style={styles.asvRow}>
-          <Text style={styles.asvText}>📖  View ASV Reference Guide</Text>
+        {/* ASV REFERENCE LIBRARY */}
+        <TouchableOpacity style={styles.libraryBtn} onPress={() => navigation.navigate('ReferenceLibrary')}>
+          <Text style={styles.libraryText}>
+            📖 ASV Reference Library
+          </Text>
         </TouchableOpacity>
 
         {/* ── QUESTIONS 1–3 ── */}
@@ -763,5 +765,22 @@ const styles = StyleSheet.create({
     height: 340,
     borderRadius: 14,
     backgroundColor: '#F3F4F6',
+  },
+
+    // ASV LIBRARY BUTTON
+  libraryBtn: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 10,
+    padding: 14,
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+
+  libraryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1D4ED8",
   },
 });

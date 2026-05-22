@@ -380,7 +380,7 @@ export default function RegisterSampleScreen({
 
           {/* REGISTERED LIST */}
           <Text style={styles.sectionTitle}>
-            Select Registered Sample
+            Registered Samples ({registeredSamples.length})
           </Text>
 
           <View style={styles.sampleList}>
