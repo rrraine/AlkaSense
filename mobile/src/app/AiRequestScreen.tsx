@@ -189,16 +189,16 @@ export default function AiRequestScreen({ navigation, route }: any) {
 
   const observationRows = buildObservationRows(answers);
 
-  function handleRequestDraft() {
-    navigation.navigate('AiDraftLoading', {
-      imageUri,
-      sampleId,
-      variety,
-      grainCount,
-      session,
-      answers,
-    });
-  }
+function handleRequestDraft() {
+  navigation.navigate('AiDraftLoading', {
+    imageUri,
+    sampleId,
+    variety,
+    grainCount,
+    session,
+    answers,
+  });
+}
 
   return (
     <View style={styles.root}>

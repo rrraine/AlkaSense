@@ -13,7 +13,7 @@ type StepStatus = 'pending' | 'active' | 'done';
 
 interface Step {
   label: string;
-  duration: number; // ms this step takes before completing
+  duration: number;
 }
 
 const STEPS: Step[] = [
@@ -209,8 +209,6 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
     }, d0 + d1 + d2);
 
     t4 = setTimeout(() => {
-      // Navigate to the next screen once all steps are complete
-      // Adjust target + params as needed for your navigator
       navigation?.navigate('AiDraftResult', route?.params ?? {});
     }, d0 + d1 + d2 + 600);
 
