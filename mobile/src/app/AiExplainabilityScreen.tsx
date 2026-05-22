@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   },
 
   toggleLeft: {
-    flex: 6,
+    flex: 1,
   },
 
   toggleTitle: {

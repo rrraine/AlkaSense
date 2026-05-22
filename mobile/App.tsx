@@ -30,6 +30,7 @@ import AiRequestScreen from './src/app/AiRequestScreen';
 import AiDraftLoadingScreen from './src/app/AiDraftLoadingScreen';
 import AiDraftResultScreen from './src/app/AiDraftResultScreen';
 import AiExplainabilityScreen from './src/app/AiExplainabilityScreen';
+import AiScoreConfirmScreen from './src/app/AiScoreConfirmScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -66,6 +67,7 @@ export default function App() {
         <Stack.Screen name="AiDraftLoading" component={AiDraftLoadingScreen} />
         <Stack.Screen name="AiDraftResult" component={AiDraftResultScreen} />
         <Stack.Screen name="AiExplainability" component={AiExplainabilityScreen} />
+        <Stack.Screen name="AiScoreConfirm" component={AiScoreConfirmScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

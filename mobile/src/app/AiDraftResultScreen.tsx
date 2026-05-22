@@ -343,7 +343,7 @@ export default function AiDraftResultScreen({
 
   function handleConfirm() {
 
-    navigation?.navigate('ScoreConfirmed', {
+    navigation?.navigate('AiScoreConfirm', {
       imageUri,
       sampleId,
       variety,
