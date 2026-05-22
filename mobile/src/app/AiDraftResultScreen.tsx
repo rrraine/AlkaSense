@@ -577,7 +577,21 @@ export default function AiDraftResultScreen({
 
           </View>
 
-          <TouchableOpacity style={styles.explainBtn}>
+          <TouchableOpacity
+  style={styles.explainBtn}
+  onPress={() =>
+    navigation?.navigate('AiExplainability', {
+      imageUri,
+      sampleId,
+      variety,
+      grainCount,
+      session,
+      aiDraftScore,
+      calibratedCertainty,
+    })
+  }
+  activeOpacity={0.85}
+>
 
             <Text style={styles.explainIcon}>
               ◉
