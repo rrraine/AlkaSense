@@ -23,6 +23,7 @@ import ScoreConfimedScreen from './src/app/ScoreConfirmedScreen';
 import SamplePreviewScreen from './src/app/SamplePreviewScreen';
 import ScoreCorrectionScreen from './src/app/ScoreCorrectionScreen';
 import CorrectionLogScreen from './src/app/CorrectionLogScreen';
+import ReferenceLibraryScreen from './src/app/ReferenceLibraryScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -52,6 +53,7 @@ export default function App() {
         <Stack.Screen name="SamplePreview" component={SamplePreviewScreen} />
         <Stack.Screen name="ScoreCorrection" component={ScoreCorrectionScreen} />
         <Stack.Screen name="CorrectionLog" component={CorrectionLogScreen} />
+        <Stack.Screen name="ReferenceLibrary" component={ReferenceLibraryScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
