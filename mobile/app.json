@@ -29,8 +29,7 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-secure-store",
-      "expo-sharing"
+      "expo-secure-store"
     ],
     "sdkVersion": "54.0.0"
   }
