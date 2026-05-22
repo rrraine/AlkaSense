@@ -202,7 +202,7 @@ export default function ManualScoreScreen({ navigation, route }: any) {
 
   function handleProceed() {
     if (selectedScore === null) return;
-    navigation.navigate('ConfirmScore', {
+    navigation.navigate('ScoreConfirmed', {
       imageUri,
       sampleId,
       variety,

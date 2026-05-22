@@ -19,6 +19,7 @@ import ImagePreviewScreen from './src/app/ImagePreviewScreen';
 import ValidationResultScreen from './src/app/ValidationResultScreen';
 import ExpertObservationScreen from './src/app/ExpertObservationScreen';
 import ManualScoreScreen from './src/app/ManualScoreScreen';
+import ScoreConfimedScreen from './src/app/ScoreConfirmedScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -44,6 +45,7 @@ export default function App() {
         <Stack.Screen name="ValidationResult" component={ValidationResultScreen} />
         <Stack.Screen name="ExpertObservation" component={ExpertObservationScreen} />
         <Stack.Screen name="ManualScore" component={ManualScoreScreen} />
+        <Stack.Screen name="ScoreConfirmed" component={ScoreConfimedScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
