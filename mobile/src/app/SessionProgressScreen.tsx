@@ -457,7 +457,7 @@ export default function SessionProgressScreen({ navigation }: any) {
 
           </View>
 
-          <TouchableOpacity style={styles.libraryBtn}>
+          <TouchableOpacity style={styles.libraryBtn} onPress={() => navigation.navigate('ReferenceLibrary')}>
             <Text style={styles.libraryBtnText}>
               📖 ASV Reference Library
             </Text>

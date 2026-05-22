@@ -643,6 +643,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Filter Panel ─────────────────────────────────────────────────────────────
+  filterPanelWrapper: {
+    marginHorizontal: 14,
+    marginBottom: 12,
+  },
+
   filterPanel: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
