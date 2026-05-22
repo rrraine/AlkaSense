@@ -1,5 +1,12 @@
 **/__pycache__/
 *.pyc
+.venv/
+
+# Environment variables
+.env
+
+# Firebase secrets
+serviceAccountKey.json
 
 # Frontend
 mobile/node_modules/
@@ -7,12 +14,23 @@ mobile/.env
 mobile/.expo/
 mobile/google-services.json
 
+# Node
+node_modules/
+
+# Expo
+.expo/
+
 # Backend
 backend/venv/
 backend/.env
 backend/__pycache__/
 backend/src/core/secrets/
+backend/src/core/secrets/serviceAccountKey.json
+
 
 # ML
 ml/dataset/
 *.tflite
+
+# macOS
+.DS_Store

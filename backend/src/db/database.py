@@ -13,5 +13,11 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-from src.features.session.model import Session
-from src.features.sample.model import Sample
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
