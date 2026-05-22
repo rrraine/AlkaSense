@@ -344,7 +344,7 @@ export default function ManualScoreScreen({ navigation, route }: any) {
           disabled={selectedScore === null}
         >
           <Text style={styles.proceedBtnText}>
-            Proceed to Confirm Score →
+            Confirm Score
           </Text>
         </TouchableOpacity>
 
