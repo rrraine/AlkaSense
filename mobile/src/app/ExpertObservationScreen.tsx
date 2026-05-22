@@ -250,7 +250,7 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleSaveAndDraft() {
-    navigation.navigate('AIDraft', {
+    navigation.navigate('AiRequest', {
       imageUri,
       sampleId,
       variety,

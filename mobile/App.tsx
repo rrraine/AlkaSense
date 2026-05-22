@@ -26,6 +26,7 @@ import CorrectionLogScreen from './src/app/CorrectionLogScreen';
 import ReferenceLibraryScreen from './src/app/ReferenceLibraryScreen';
 import BatchSummaryScreen from './src/app/BatchSummaryScreen';
 import UploadReportScreen from './src/app/UploadReportScreen';
+import AiRequestScreen from './src/app/AiRequestScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -58,6 +59,7 @@ export default function App() {
         <Stack.Screen name="ReferenceLibrary" component={ReferenceLibraryScreen} />
         <Stack.Screen name="BatchSummary" component={BatchSummaryScreen} />
         <Stack.Screen name="UploadReport" component={UploadReportScreen} />
+        <Stack.Screen name="AiRequest" component={AiRequestScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

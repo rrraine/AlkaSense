@@ -10,10 +10,6 @@ import {
   Easing,
 } from 'react-native';
 
-// ─────────────────────────────────────────────────────────────
-// CONSTANTS / PLACEHOLDER DATA
-// ─────────────────────────────────────────────────────────────
-
 const GREEN = '#008236';
 
 type UploadState = 'idle' | 'uploading' | 'success';
@@ -30,10 +26,6 @@ const FILES = {
   pdf: { label: 'PDF Report', size: '245 KB' },
   csv: { label: 'CSV Data',   size: '18 KB'  },
 };
-
-// ─────────────────────────────────────────────────────────────
-// SUB-COMPONENTS
-// ─────────────────────────────────────────────────────────────
 
 /** Green success banner shown after upload */
 function SuccessBanner() {
@@ -149,10 +141,6 @@ function UploadStatusCard({ state }: { state: UploadState }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// MAIN SCREEN
-// ─────────────────────────────────────────────────────────────
-
 export default function UploadReportScreen({ navigation }: any) {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const progress = useRef(new Animated.Value(0)).current;
@@ -255,10 +243,6 @@ export default function UploadReportScreen({ navigation }: any) {
     </View>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F3F4F6' },
