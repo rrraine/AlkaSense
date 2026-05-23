@@ -56,7 +56,7 @@ AlkaSense automates the ASV scoring of rice grains using a CNN model trained on 
 ## 2. Repository Structure
 
 ```
-alkasense/
+ml/
 │
 ├── data/
 │   ├── raw/                        # Original uploads — never modified

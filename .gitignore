@@ -29,7 +29,7 @@ backend/src/core/secrets/serviceAccountKey.json
 
 
 # ML
-ml/alkasense_dataset/
+#ml/alkasense_dataset/
 *.tflite
 ml/.env
 ml/__pycache__/
