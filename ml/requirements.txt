@@ -1,0 +1,14 @@
+# requirements.txt
+tensorflow>=2.13.0
+tf-keras-vis>=0.8.5
+scikit-learn>=1.3.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+pyyaml>=6.0
+watchdog>=3.0.0          # File system watcher
+requests>=2.31.0         # Connectivity check
+tensorboard>=2.13.0
+numpy>=1.24.0
+
+anthropic>=0.40.0
+python-dotenv>=1.0.0    # for loading .env safely
