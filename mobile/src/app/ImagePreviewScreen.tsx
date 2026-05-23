@@ -27,7 +27,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
   } = route.params;
 
   function handleSubmit() {
-    navigation.navigate('AnalysisResult', {
+    navigation.navigate('ValidationResult', {
       imageUri,
       sampleId,
       variety,

@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
   TextInput,
   TouchableOpacity,
 } from "react-native";
@@ -65,11 +66,14 @@ export default function LoginScreen({ navigation }: any) {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}></Text>
-          </View>
+          {/* LOGO */}
+          <Image
+            source={require("../../assets/logo2.png")}
+            style={styles.logo}
+          />
 
           <Text style={styles.title}>AlkaSense</Text>
+
           <Text style={styles.subtitle}>
             AI-Assisted Rice Grain Evaluation
           </Text>
@@ -81,10 +85,10 @@ export default function LoginScreen({ navigation }: any) {
 
         {/* FORM */}
         <View style={styles.form}>
-
           {/* EMAIL */}
           <View style={styles.field}>
             <Text style={styles.label}>Email Address</Text>
+
             <TextInput
               style={[styles.input, !!errors.email && styles.inputError]}
               placeholder="evaluator@philrice.gov.ph"
@@ -94,13 +98,24 @@ export default function LoginScreen({ navigation }: any) {
               keyboardType="email-address"
               autoCapitalize="none"
             />
-            {!!errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+
+            {!!errors.email && (
+              <Text style={styles.errorText}>
+                {errors.email}
+              </Text>
+            )}
           </View>
 
           {/* PASSWORD */}
           <View style={styles.field}>
             <Text style={styles.label}>Password</Text>
-            <View style={[styles.passwordRow, !!errors.password && styles.inputError]}>
+
+            <View
+              style={[
+                styles.passwordRow,
+                !!errors.password && styles.inputError,
+              ]}
+            >
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Enter your password"
@@ -109,31 +124,56 @@ export default function LoginScreen({ navigation }: any) {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
-                <Text style={styles.show}>{showPassword ? "Hide" : "Show"}</Text>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setShowPassword((prev) => !prev)
+                }
+              >
+                <Text style={styles.show}>
+                  {showPassword ? "Hide" : "Show"}
+                </Text>
               </TouchableOpacity>
             </View>
-            {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
+            {!!errors.password && (
+              <Text style={styles.errorText}>
+                {errors.password}
+              </Text>
+            )}
           </View>
 
           {/* FORGOT PASSWORD */}
           <TouchableOpacity>
-            <Text style={styles.forgot}>Forgot password?</Text>
+            <Text style={styles.forgot}>
+              Forgot password?
+            </Text>
           </TouchableOpacity>
 
-          {/* BUTTON */}
-          <TouchableOpacity style={styles.button} onPress={handleSignIn}>
-            <Text style={styles.buttonText}>Sign In</Text>
+          {/* SIGN IN BUTTON */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSignIn}
+          >
+            <Text style={styles.buttonText}>
+              Sign In
+            </Text>
           </TouchableOpacity>
 
           {/* SIGN UP */}
           <View style={styles.signupRow}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
-              <Text style={styles.signupLink}>Sign up</Text>
+            <Text style={styles.signupText}>
+              Don't have an account?{" "}
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate("SignUp")}
+            >
+              <Text style={styles.signupLink}>
+                Sign up
+              </Text>
             </TouchableOpacity>
           </View>
-
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -157,22 +197,19 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: "#008236",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 100,
+    height: 100,
+    resizeMode: "contain",
     marginBottom: 10,
+
+    borderRadius: 20,
+    overflow: "hidden",
+
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
-  },
-
-  logoText: {
-    fontSize: 38,
   },
 
   title: {
@@ -261,6 +298,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
+
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,

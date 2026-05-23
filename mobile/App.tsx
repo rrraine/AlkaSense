@@ -16,6 +16,21 @@ import SessionProgressScreen from './src/app/SessionProgressScreen';
 import RegisterSampleScreen from './src/app/RegisterSampleScreen';
 import ImageCaptureScreen from './src/app/ImageCaptureScreen';
 import ImagePreviewScreen from './src/app/ImagePreviewScreen';
+import ValidationResultScreen from './src/app/ValidationResultScreen';
+import ExpertObservationScreen from './src/app/ExpertObservationScreen';
+import ManualScoreScreen from './src/app/ManualScoreScreen';
+import ScoreConfimedScreen from './src/app/ScoreConfirmedScreen';
+import SamplePreviewScreen from './src/app/SamplePreviewScreen';
+import ScoreCorrectionScreen from './src/app/ScoreCorrectionScreen';
+import CorrectionLogScreen from './src/app/CorrectionLogScreen';
+import ReferenceLibraryScreen from './src/app/ReferenceLibraryScreen';
+import BatchSummaryScreen from './src/app/BatchSummaryScreen';
+import UploadReportScreen from './src/app/UploadReportScreen';
+import AiRequestScreen from './src/app/AiRequestScreen';
+import AiDraftLoadingScreen from './src/app/AiDraftLoadingScreen';
+import AiDraftResultScreen from './src/app/AiDraftResultScreen';
+import AiExplainabilityScreen from './src/app/AiExplainabilityScreen';
+import AiScoreConfirmScreen from './src/app/AiScoreConfirmScreen';
 
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
@@ -38,6 +53,21 @@ export default function App() {
         <Stack.Screen name="RegisterSample" component={RegisterSampleScreen} />
         <Stack.Screen name="ImageCapture" component={ImageCaptureScreen} />
         <Stack.Screen name="ImagePreview" component={ImagePreviewScreen} />
+        <Stack.Screen name="ValidationResult" component={ValidationResultScreen} />
+        <Stack.Screen name="ExpertObservation" component={ExpertObservationScreen} />
+        <Stack.Screen name="ManualScore" component={ManualScoreScreen} />
+        <Stack.Screen name="ScoreConfirmed" component={ScoreConfimedScreen} />
+        <Stack.Screen name="SamplePreview" component={SamplePreviewScreen} />
+        <Stack.Screen name="ScoreCorrection" component={ScoreCorrectionScreen} />
+        <Stack.Screen name="CorrectionLog" component={CorrectionLogScreen} />
+        <Stack.Screen name="ReferenceLibrary" component={ReferenceLibraryScreen} />
+        <Stack.Screen name="BatchSummary" component={BatchSummaryScreen} />
+        <Stack.Screen name="UploadReport" component={UploadReportScreen} />
+        <Stack.Screen name="AiRequest" component={AiRequestScreen} />
+        <Stack.Screen name="AiDraftLoading" component={AiDraftLoadingScreen} />
+        <Stack.Screen name="AiDraftResult" component={AiDraftResultScreen} />
+        <Stack.Screen name="AiExplainability" component={AiExplainabilityScreen} />
+        <Stack.Screen name="AiScoreConfirm" component={AiScoreConfirmScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Image,
 } from "react-native";
 
 const MOCK_SESSION = {
@@ -22,11 +23,27 @@ export default function DashboardScreen({ navigation }: any) {
 
   return (
     <View style={styles.root}>
-
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Session History</Text>
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.navigate("Login")}>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require("../../assets/logo2.png")}
+            style={styles.logo}
+          />
+
+          <View>
+            <Text style={styles.headerTitle}>AlkaSense</Text>
+
+            <Text style={styles.headerSubtitle}>
+              AI-Assisted Rice Grain Evaluation
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => navigation.navigate("Login")}
+        >
           <Text style={styles.logoutText}>⇥ Logout</Text>
         </TouchableOpacity>
       </View>
@@ -42,37 +59,58 @@ export default function DashboardScreen({ navigation }: any) {
         />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* ASV REFERENCE LIBRARY */}
-        <TouchableOpacity style={styles.libraryBtn}>
-          <Text style={styles.libraryText}>📖  ASV Reference Library</Text>
+        <TouchableOpacity style={styles.libraryBtn} onPress={() => navigation.navigate('ReferenceLibrary')}>
+          <Text style={styles.libraryText}>
+            📖 ASV Reference Library
+          </Text>
         </TouchableOpacity>
 
         {/* SESSION CARD */}
         <TouchableOpacity
           style={styles.card}
-          onPress={() => navigation.navigate("SessionProgress", { sessionId: MOCK_SESSION.id })}
+          onPress={() =>
+            navigation.navigate("SessionProgress", {
+              sessionId: MOCK_SESSION.id,
+            })
+          }
         >
           <View style={styles.cardTop}>
             <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>{MOCK_SESSION.name}</Text>
-              <Text style={styles.cardBatch}>{MOCK_SESSION.batchId}</Text>
+              <Text style={styles.cardTitle}>
+                {MOCK_SESSION.name}
+              </Text>
+
+              <Text style={styles.cardBatch}>
+                {MOCK_SESSION.batchId}
+              </Text>
             </View>
+
             <View style={styles.activeBadge}>
-              <Text style={styles.activeBadgeText}>{MOCK_SESSION.status}</Text>
+              <Text style={styles.activeBadgeText}>
+                {MOCK_SESSION.status}
+              </Text>
             </View>
           </View>
 
           <View style={styles.cardDivider} />
 
           <View style={styles.cardBottom}>
-            <Text style={styles.cardMeta}>📅  {MOCK_SESSION.date}</Text>
-            <Text style={styles.cardMeta}>📊  {MOCK_SESSION.samples} samples</Text>
+            <Text style={styles.cardMeta}>
+              📅 {MOCK_SESSION.date}
+            </Text>
+
+            <Text style={styles.cardMeta}>
+              📊 {MOCK_SESSION.samples} samples
+            </Text>
+
             <Text style={styles.cardChevron}>›</Text>
           </View>
         </TouchableOpacity>
-
       </ScrollView>
 
       {/* CREATE NEW SESSION BUTTON */}
@@ -81,10 +119,11 @@ export default function DashboardScreen({ navigation }: any) {
           style={styles.createBtn}
           onPress={() => navigation.navigate("CreateSession")}
         >
-          <Text style={styles.createBtnText}>+ Create New Session</Text>
+          <Text style={styles.createBtnText}>
+            + Create New Session
+          </Text>
         </TouchableOpacity>
       </View>
-
     </View>
   );
 }
@@ -98,7 +137,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
 
-  // Header
+  // HEADER
   header: {
     backgroundColor: GREEN,
     paddingTop: 56,
@@ -109,10 +148,30 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+
+  logo: {
+    width: 52,
+    height: 52,
+    resizeMode: "contain",
+    borderRadius: 14,
+    marginRight: 12,
+  },
+
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "700",
     color: "#fff",
+  },
+
+  headerSubtitle: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 2,
   },
 
   logoutBtn: {
@@ -130,7 +189,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Search
+  // SEARCH
   searchWrapper: {
     backgroundColor: GREEN,
     paddingHorizontal: 16,
@@ -148,11 +207,17 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.25)",
   },
 
-  // Scroll
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
+  // SCROLL
+  scroll: {
+    flex: 1,
+  },
 
-  // ASV Library button
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+
+  // ASV LIBRARY BUTTON
   libraryBtn: {
     backgroundColor: "#EFF6FF",
     borderRadius: 10,
@@ -169,17 +234,19 @@ const styles = StyleSheet.create({
     color: "#1D4ED8",
   },
 
-  // Session card
+  // SESSION CARD
   card: {
     backgroundColor: "#fff",
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
+
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
+
     borderWidth: 0.5,
     borderColor: "#E5E7EB",
   },
@@ -191,7 +258,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  cardInfo: { flex: 1, marginRight: 12 },
+  cardInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
 
   cardTitle: {
     fontSize: 16,
@@ -244,7 +314,7 @@ const styles = StyleSheet.create({
     fontWeight: "300",
   },
 
-  // Footer
+  // FOOTER
   footer: {
     position: "absolute",
     bottom: 0,
@@ -261,6 +331,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
+
     shadowColor: GREEN_DARK,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

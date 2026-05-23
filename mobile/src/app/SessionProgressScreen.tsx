@@ -117,37 +117,83 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── Sample Card ─────────────────────────────────────────────────────────────
 
-function SampleCard({ sample }: { sample: Sample }) {
+function SampleCard({
+  sample,
+  navigation,
+}: {
+  sample: Sample;
+  navigation: any;
+}) {
+  function handleNavigation() {
+    if (sample.status === 'Registered') {
+      navigation.navigate('ImageCapture', {
+        sampleId: sample.id,
+        variety: sample.variety,
+      });
+
+      return;
+    }
+
+    if (sample.status === 'Pending') {
+      navigation.navigate('ExpertObservation', {
+        sampleId: sample.id,
+        variety: sample.variety,
+        asv: 'asv' in sample ? sample.asv : undefined,
+      });
+
+      return;
+    }
+
+    navigation.navigate('SamplePreview', {
+      ...sample,
+    });
+  }
+
   return (
-    <TouchableOpacity style={styles.sampleCard} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.sampleCard}
+      activeOpacity={0.7}
+      onPress={handleNavigation}
+    >
       <View style={styles.sampleLeft}>
+
         <View style={styles.sampleTopRow}>
-          <Text style={styles.sampleId}>{sample.id}</Text>
+
+          <Text style={styles.sampleId}>
+            {sample.id}
+          </Text>
 
           {'asv' in sample && sample.asv != null && (
             <View style={styles.asvPill}>
-              <Text style={styles.asvPillText}>ASV {sample.asv}</Text>
+              <Text style={styles.asvPillText}>
+                ASV {sample.asv}
+              </Text>
             </View>
           )}
 
           {'flagged' in sample && sample.flagged && (
             <Text style={styles.flagIcon}>⚠</Text>
           )}
+
         </View>
 
-        <Text style={styles.sampleVariety}>{sample.variety}</Text>
+        <Text style={styles.sampleVariety}>
+          {sample.variety}
+        </Text>
 
         {'time' in sample && sample.time && (
           <Text style={styles.sampleTime}>
             Evaluated at {sample.time}
           </Text>
         )}
+
       </View>
 
       <View style={styles.sampleRight}>
         <StatusBadge status={sample.status} />
         <Text style={styles.chevron}>›</Text>
       </View>
+
     </TouchableOpacity>
   );
 }
@@ -161,20 +207,18 @@ const Y_TICKS = [4, 3, 2, 1, 0];
 function ASVChart() {
   const distribution = ASV_RANGE.map((score) => ({
     score,
-    count: SAMPLES.filter(
-      (s) => 'asv' in s && s.asv === score
-    ).length,
+    count: SAMPLES.filter((s) => 'asv' in s && s.asv === score).length,
   }));
 
   return (
     <View style={styles.chartCard}>
+
       <Text style={styles.chartTitle}>
         ASV Score Distribution
       </Text>
 
       <View style={styles.chartWrapper}>
 
-        {/* Y-axis */}
         <View style={[styles.yAxis, { height: CHART_HEIGHT }]}>
           {Y_TICKS.map((val) => (
             <Text key={val} style={styles.yLabel}>
@@ -183,37 +227,29 @@ function ASVChart() {
           ))}
         </View>
 
-        {/* Plot */}
         <View style={{ flex: 1 }}>
-          <View
-            style={[styles.plotArea, { height: CHART_HEIGHT }]}
-          >
 
-            {/* Grid */}
+          <View style={[styles.plotArea, { height: CHART_HEIGHT }]}>
+
             {Y_TICKS.filter((v) => v > 0).map((val) => (
               <View
                 key={val}
                 style={[
                   styles.gridLine,
                   {
-                    bottom:
-                      (val / Y_MAX) * CHART_HEIGHT,
+                    bottom: (val / Y_MAX) * CHART_HEIGHT,
                   },
                 ]}
               />
             ))}
 
-            {/* Bars */}
             <View style={styles.barsRow}>
+
               {distribution.map((item, i) => {
-                const h =
-                  (item.count / Y_MAX) * CHART_HEIGHT;
+                const h = (item.count / Y_MAX) * CHART_HEIGHT;
 
                 return (
-                  <View
-                    key={item.score}
-                    style={styles.barCol}
-                  >
+                  <View key={item.score} style={styles.barCol}>
                     <AnimatedBar
                       targetHeight={h}
                       isEmpty={item.count === 0}
@@ -222,39 +258,38 @@ function ASVChart() {
                   </View>
                 );
               })}
+
             </View>
+
           </View>
 
           <View style={styles.xAxisLine} />
 
-          {/* X labels */}
           <View style={styles.xLabelsRow}>
             {distribution.map((item) => (
-              <View
-                key={item.score}
-                style={styles.barCol}
-              >
+              <View key={item.score} style={styles.barCol}>
                 <Text style={styles.xLabel}>
                   {item.score}
                 </Text>
               </View>
             ))}
           </View>
+
         </View>
+
       </View>
 
       <Text style={styles.chartCaption}>
         3 completed evaluations across ASV 1–7 scale
       </Text>
+
     </View>
   );
 }
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function SessionProgressScreen({
-  navigation,
-}: any) {
+export default function SessionProgressScreen({ navigation }: any) {
   const total = SAMPLES.length;
 
   const completed = SAMPLES.filter(
@@ -271,21 +306,22 @@ export default function SessionProgressScreen({
 
   return (
     <View style={styles.root}>
+
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
+        {/* HEADER */}
         <View style={styles.header}>
 
           <View style={styles.headerNav}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-            >
+
+            <TouchableOpacity onPress={() => navigation.goBack()}>
               <Text style={styles.navIcon}>←</Text>
             </TouchableOpacity>
 
             <TouchableOpacity>
               <Text style={styles.navIcon}>☰</Text>
             </TouchableOpacity>
+
           </View>
 
           <Text style={styles.sessionTitle}>
@@ -296,7 +332,6 @@ export default function SessionProgressScreen({
             Session ALKA-2026-041 · Batch PR-2026-041
           </Text>
 
-          {/* Combined Evaluator + Date */}
           <View style={styles.metaCombined}>
             <Text style={styles.metaText}>
               👤 Dr. Maria Santos
@@ -307,18 +342,15 @@ export default function SessionProgressScreen({
             </Text>
           </View>
 
-          {/* Stats */}
           <View style={styles.statsRow}>
+
             {[
               { label: 'Total', value: total },
               { label: 'Completed', value: completed },
               { label: 'Pending', value: pending },
               { label: 'Flagged', value: flagged },
             ].map((stat) => (
-              <View
-                key={stat.label}
-                style={styles.statItem}
-              >
+              <View key={stat.label} style={styles.statItem}>
                 <Text style={styles.statNumber}>
                   {stat.value}
                 </Text>
@@ -328,14 +360,16 @@ export default function SessionProgressScreen({
                 </Text>
               </View>
             ))}
+
           </View>
+
         </View>
 
-        {/* Body */}
+        {/* BODY */}
         <View style={styles.body}>
 
-          {/* Section */}
           <View style={styles.sectionRow}>
+
             <Text style={styles.sectionTitle}>
               Session Progress Dashboard
             </Text>
@@ -345,18 +379,19 @@ export default function SessionProgressScreen({
                 ↻ Refresh
               </Text>
             </TouchableOpacity>
+
           </View>
 
-          {/* Flagged */}
           {flagged > 0 && (
             <View style={styles.flaggedCard}>
+
               <Text style={styles.flaggedTitle}>
                 ⚠ Flagged Samples ({flagged})
               </Text>
 
               <Text style={styles.flaggedSubtitle}>
-                The following samples have alerts that
-                may require review before session closure.
+                The following samples have alerts that may require
+                review before session closure.
               </Text>
 
               {SAMPLES.filter(
@@ -366,8 +401,14 @@ export default function SessionProgressScreen({
                   key={s.id}
                   style={styles.flaggedItem}
                   activeOpacity={0.7}
+                  onPress={() =>
+                    navigation.navigate('SamplePreview', {
+                      ...s,
+                    })
+                  }
                 >
                   <View>
+
                     <Text style={styles.flaggedItemId}>
                       {s.id} · {s.variety}
                     </Text>
@@ -375,18 +416,19 @@ export default function SessionProgressScreen({
                     <Text style={styles.flaggedAlert}>
                       ▲ Low AI confidence (62%)
                     </Text>
+
                   </View>
 
                   <Text style={styles.chevron}>›</Text>
+
                 </TouchableOpacity>
               ))}
+
             </View>
           )}
 
-          {/* Chart */}
           <ASVChart />
 
-          {/* Sample List */}
           <Text style={styles.listTitle}>
             Sample Status List ({total})
           </Text>
@@ -395,42 +437,52 @@ export default function SessionProgressScreen({
             <SampleCard
               key={sample.id}
               sample={sample}
+              navigation={navigation}
             />
           ))}
 
-          {/* Action Buttons */}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.secondaryBtn}>
+
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('BatchSummary')}>
               <Text style={styles.secondaryBtnText}>
                 📊{'\n'}View Summary
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryBtn}>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('CorrectionLog')}>
               <Text style={styles.secondaryBtnText}>
                 📋{'\n'}Corrections
               </Text>
             </TouchableOpacity>
+
           </View>
 
-          <TouchableOpacity style={styles.libraryBtn}>
+          <TouchableOpacity style={styles.libraryBtn} onPress={() => navigation.navigate('ReferenceLibrary')}>
             <Text style={styles.libraryBtnText}>
               📖 ASV Reference Library
             </Text>
           </TouchableOpacity>
 
           <View style={{ height: 120 }} />
+
         </View>
+
       </ScrollView>
 
-      {/* Footer */}
+      {/* FOOTER */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.registerBtn} onPress={() => navigation.navigate("RegisterSample")}>
+
+        <TouchableOpacity
+          style={styles.registerBtn}
+          onPress={() => navigation.navigate('RegisterSample')}
+        >
           <Text style={styles.registerBtnText}>
             + Register New Sample
           </Text>
         </TouchableOpacity>
+
       </View>
+
     </View>
   );
 }
@@ -443,7 +495,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
 
-  // Header
   header: {
     backgroundColor: GREEN,
     paddingTop: 55,
@@ -475,24 +526,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Combined Meta
   metaCombined: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     backgroundColor: GREEN_DARK,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 14,
-    gap: 94,
-  },
-
-  metaDivider: {
-    width: 1,
-    height: 18,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    marginHorizontal: 14,
   },
 
   metaText: {
@@ -524,7 +566,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Body
   body: {
     padding: 16,
   },
@@ -556,7 +597,6 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // Flagged Card
   flaggedCard: {
     backgroundColor: '#FFF8E8',
     borderWidth: 1,
@@ -608,7 +648,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 
-  // Chart
   chartCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -703,7 +742,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
-  // Sample List
   listTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -775,7 +813,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  // Status Badges
   badgeConfirmed: {
     backgroundColor: '#D1FAE5',
     borderRadius: 999,
@@ -815,7 +852,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Actions
   actionRow: {
     flexDirection: 'row',
     gap: 12,
@@ -856,7 +892,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Footer
   footer: {
     position: 'absolute',
     bottom: 0,

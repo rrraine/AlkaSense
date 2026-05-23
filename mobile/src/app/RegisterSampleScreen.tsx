@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -29,219 +29,436 @@ type RegisteredSample = {
 };
 
 const MOCK_REGISTERED: RegisteredSample[] = [
-  { id: 'S001', variety: 'NSIC Rc 222', grainCount: '10', registeredAt: '14:30' },
-  { id: 'S002', variety: 'PSB Rc 18',   grainCount: '10', registeredAt: '14:25' },
+  {
+    id: 'S001',
+    variety: 'NSIC Rc 222',
+    grainCount: '10',
+    registeredAt: '14:30',
+  },
+  {
+    id: 'S002',
+    variety: 'PSB Rc 18',
+    grainCount: '10',
+    registeredAt: '14:25',
+  },
 ];
 
-export default function RegisterSampleScreen({ navigation, route }: any) {
-  const sessionId   = route?.params?.sessionId ?? 'ALKA-2026-041';
-  const batchId     = route?.params?.batchId   ?? 'PR-2026-041';
-  const kohConc     = route?.params?.kohConc    ?? '1.7';
-  const duration    = route?.params?.duration   ?? '23';
-  const temperature = route?.params?.temperature ?? '30';
+export default function RegisterSampleScreen({
+  navigation,
+  route,
+}: any) {
+  const sessionId =
+    route?.params?.sessionId ?? 'ALKA-2026-041';
 
-  const [sampleId,          setSampleId]          = useState('');
-  const [variety,           setVariety]            = useState('');
-  const [grainCount,        setGrainCount]         = useState('');
-  const [showDropdown,      setShowDropdown]       = useState(false);
-  const [errors,            setErrors]             = useState<Record<string, string>>({});
-  const [registeredSamples, setRegisteredSamples]  = useState<RegisteredSample[]>(MOCK_REGISTERED);
+  const batchId =
+    route?.params?.batchId ?? 'PR-2026-041';
 
-  function getNextSampleId() {
+  const kohConc =
+    route?.params?.kohConc ?? '1.7';
+
+  const duration =
+    route?.params?.duration ?? '23';
+
+  const temperature =
+    route?.params?.temperature ?? '30';
+
+  const [sampleId, setSampleId] = useState('');
+  const [variety, setVariety] = useState('');
+  const [grainCount, setGrainCount] =
+    useState('');
+
+  const [showDropdown, setShowDropdown] =
+    useState(false);
+
+  const [errors, setErrors] = useState<
+    Record<string, string>
+  >({});
+
+  const [registeredSamples, setRegisteredSamples] =
+    useState<RegisteredSample[]>(
+      MOCK_REGISTERED
+    );
+
+  // SELECTED SAMPLE
+  const [selectedSampleId, setSelectedSampleId] =
+    useState<string | null>(null);
+
+  const nextSampleId = useMemo(() => {
     const next = registeredSamples.length + 1;
+
     return `S${String(next).padStart(3, '0')}`;
-  }
+  }, [registeredSamples]);
 
-  function handleRegister() {
-    const newErrors: Record<string, string> = {};
+  function validateForm() {
+    const newErrors: Record<string, string> =
+      {};
 
-    if (!sampleId.trim())   newErrors.sampleId   = 'Sample identifier is required.';
-    if (!variety)           newErrors.variety     = 'Please select a rice variety.';
-    if (!grainCount.trim()) newErrors.grainCount  = 'Grain count is required.';
-    else if (isNaN(Number(grainCount)) || Number(grainCount) <= 0)
-      newErrors.grainCount = 'Enter a valid grain count.';
+    if (!sampleId.trim()) {
+      newErrors.sampleId =
+        'Sample identifier is required.';
+    }
+
+    if (!variety.trim()) {
+      newErrors.variety =
+        'Please select a rice variety.';
+    }
+
+    if (!grainCount.trim()) {
+      newErrors.grainCount =
+        'Grain count is required.';
+    } else if (
+      isNaN(Number(grainCount)) ||
+      Number(grainCount) <= 0
+    ) {
+      newErrors.grainCount =
+        'Enter a valid grain count.';
+    }
 
     setErrors(newErrors);
 
-    if (Object.keys(newErrors).length === 0) {
-      const now   = new Date();
-      const time  = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-      setRegisteredSamples(prev => [
-        { id: sampleId, variety, grainCount, registeredAt: time },
-        ...prev,
-      ]);
-
-      setSampleId('');
-      setVariety('');
-      setGrainCount('');
-      setErrors({});
-    }
+    return Object.keys(newErrors).length === 0;
   }
+
+  function handleRegister() {
+    const isValid = validateForm();
+
+    if (!isValid) return;
+
+    const now = new Date();
+
+    const registeredAt = `${String(
+      now.getHours()
+    ).padStart(2, '0')}:${String(
+      now.getMinutes()
+    ).padStart(2, '0')}`;
+
+    const newSample: RegisteredSample = {
+      id: sampleId,
+      variety,
+      grainCount,
+      registeredAt,
+    };
+
+    setRegisteredSamples(prev => [
+      newSample,
+      ...prev,
+    ]);
+
+    // RESET FORM
+    setSampleId('');
+    setVariety('');
+    setGrainCount('');
+    setErrors({});
+    setShowDropdown(false);
+  }
+
+  // MUST SELECT A REGISTERED SAMPLE
+  const canProceed = !!selectedSampleId;
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.keyboard}
+      behavior={
+        Platform.OS === 'ios'
+          ? 'padding'
+          : 'height'
+      }
     >
       <View style={styles.root}>
 
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
-            <Text style={styles.backArrow}>←</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() =>
+              navigation?.goBack()
+            }
+          >
+            <Text style={styles.backArrow}>
+              ←
+            </Text>
           </TouchableOpacity>
+
           <View>
-            <Text style={styles.headerTitle}>Register Sample</Text>
-            <Text style={styles.headerSubtitle}>Session {sessionId}</Text>
+            <Text style={styles.headerTitle}>
+              Register Sample
+            </Text>
+
+            <Text style={styles.headerSubtitle}>
+              Session {sessionId}
+            </Text>
           </View>
         </View>
 
-        {/* TREATMENT BANNER */}
-        <View style={styles.treatmentBanner}>
-          <Text style={styles.treatmentLabel}>Session Treatment</Text>
-          <Text style={styles.treatmentValue}>
-            KOH {kohConc}% • {duration}h @ {temperature}°C • Batch {batchId}
+        {/* SESSION BANNER */}
+        <View style={styles.banner}>
+          <Text style={styles.bannerLabel}>
+            Session Treatment
+          </Text>
+
+          <Text style={styles.bannerValue}>
+            KOH {kohConc}% • {duration}h @{' '}
+            {temperature}°C • Batch {batchId}
           </Text>
         </View>
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+          contentContainerStyle={
+            styles.scrollContent
+          }
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
 
-          {/* NEW SAMPLE FORM CARD */}
+          {/* FORM CARD */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>New Sample</Text>
+            <Text style={styles.cardTitle}>
+              New Sample
+            </Text>
 
-            {/* SAMPLE IDENTIFIER */}
+            {/* SAMPLE ID */}
             <View style={styles.field}>
               <Text style={styles.label}>
-                Sample Identifier <Text style={styles.required}>*</Text>
+                Sample Identifier{' '}
+                <Text style={styles.required}>
+                  *
+                </Text>
               </Text>
+
               <TextInput
-                style={[styles.input, !!errors.sampleId && styles.inputError]}
-                placeholder={`e.g., ${getNextSampleId()}`}
+                style={[
+                  styles.input,
+                  errors.sampleId &&
+                    styles.inputError,
+                ]}
+                placeholder={`e.g., ${nextSampleId}`}
                 placeholderTextColor="#9CA3AF"
                 value={sampleId}
                 onChangeText={setSampleId}
                 autoCapitalize="characters"
               />
+
               {!!errors.sampleId && (
-                <Text style={styles.errorText}>{errors.sampleId}</Text>
+                <Text style={styles.errorText}>
+                  {errors.sampleId}
+                </Text>
               )}
             </View>
 
-            {/* RICE VARIETY DROPDOWN */}
+            {/* VARIETY */}
             <View style={styles.field}>
               <Text style={styles.label}>
-                Rice Variety <Text style={styles.required}>*</Text>
+                Rice Variety{' '}
+                <Text style={styles.required}>
+                  *
+                </Text>
               </Text>
+
               <TouchableOpacity
-                style={[styles.dropdown, !!errors.variety && styles.inputError]}
-                onPress={() => setShowDropdown(prev => !prev)}
+                style={[
+                  styles.dropdown,
+                  errors.variety &&
+                    styles.inputError,
+                ]}
                 activeOpacity={0.8}
+                onPress={() =>
+                  setShowDropdown(prev => !prev)
+                }
               >
-                <Text style={variety ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+                <Text
+                  style={
+                    variety
+                      ? styles.dropdownText
+                      : styles.dropdownPlaceholder
+                  }
+                >
                   {variety || 'Select variety'}
                 </Text>
-                <Text style={styles.dropdownChevron}>{showDropdown ? '▲' : '▼'}</Text>
+
+                <Text style={styles.chevron}>
+                  {showDropdown ? '▲' : '▼'}
+                </Text>
               </TouchableOpacity>
+
               {showDropdown && (
                 <View style={styles.dropdownList}>
-                  {RICE_VARIETIES.map((v, i) => (
-                    <TouchableOpacity
-                      key={v}
-                      style={[
-                        styles.dropdownItem,
-                        i === RICE_VARIETIES.length - 1 && styles.dropdownItemLast,
-                      ]}
-                      onPress={() => { setVariety(v); setShowDropdown(false); }}
-                    >
-                      <Text style={[
-                        styles.dropdownItemText,
-                        variety === v && styles.dropdownItemActive,
-                      ]}>
-                        {v}
-                      </Text>
-                      {variety === v && <Text style={styles.dropdownItemCheck}>✓</Text>}
-                    </TouchableOpacity>
-                  ))}
+                  {RICE_VARIETIES.map(
+                    (item, index) => (
+                      <TouchableOpacity
+                        key={item}
+                        style={[
+                          styles.dropdownItem,
+                          index ===
+                            RICE_VARIETIES.length -
+                              1 &&
+                            styles.dropdownItemLast,
+                        ]}
+                        onPress={() => {
+                          setVariety(item);
+                          setShowDropdown(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            variety === item &&
+                              styles.dropdownItemActive,
+                          ]}
+                        >
+                          {item}
+                        </Text>
+
+                        {variety === item && (
+                          <Text
+                            style={
+                              styles.dropdownCheck
+                            }
+                          >
+                            ✓
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    )
+                  )}
                 </View>
               )}
+
               {!!errors.variety && (
-                <Text style={styles.errorText}>{errors.variety}</Text>
+                <Text style={styles.errorText}>
+                  {errors.variety}
+                </Text>
               )}
             </View>
 
             {/* GRAIN COUNT */}
             <View style={styles.field}>
               <Text style={styles.label}>
-                Grain Count <Text style={styles.required}>*</Text>
+                Grain Count{' '}
+                <Text style={styles.required}>
+                  *
+                </Text>
               </Text>
+
               <TextInput
-                style={[styles.input, !!errors.grainCount && styles.inputError]}
+                style={[
+                  styles.input,
+                  errors.grainCount &&
+                    styles.inputError,
+                ]}
                 placeholder="e.g., 10"
                 placeholderTextColor="#9CA3AF"
+                keyboardType={
+                  Platform.OS === 'ios'
+                    ? 'number-pad'
+                    : 'numeric'
+                }
                 value={grainCount}
                 onChangeText={setGrainCount}
-                keyboardType={Platform.OS === 'ios' ? 'number-pad' : 'numeric'}
               />
+
               {!!errors.grainCount && (
-                <Text style={styles.errorText}>{errors.grainCount}</Text>
+                <Text style={styles.errorText}>
+                  {errors.grainCount}
+                </Text>
               )}
             </View>
 
             {/* REGISTER BUTTON */}
             <TouchableOpacity
-              style={styles.registerBtn}
+              style={styles.registerButton}
+              activeOpacity={0.85}
               onPress={handleRegister}
-              activeOpacity={0.8}
             >
-              <Text style={styles.registerBtnText}>Register Sample</Text>
+              <Text
+                style={styles.registerButtonText}
+              >
+                Register Sample
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {/* REGISTERED SAMPLES LIST */}
+          {/* REGISTERED LIST */}
           <Text style={styles.sectionTitle}>
             Registered Samples ({registeredSamples.length})
           </Text>
 
-          {registeredSamples.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No samples registered yet.</Text>
-            </View>
-          ) : (
-            registeredSamples.map((sample) => (
-              <TouchableOpacity key={sample.id} style={styles.sampleCard} activeOpacity={0.7}>
-                <View style={styles.sampleIconWrap}>
-                  <Text style={styles.sampleIconCheck}>✓</Text>
-                </View>
-                <View style={styles.sampleInfo}>
-                  <Text style={styles.sampleId}>{sample.id}</Text>
-                  <Text style={styles.sampleMeta}>
-                    {sample.variety} • {sample.grainCount} grains
-                  </Text>
-                  <Text style={styles.sampleTime}>Registered at {sample.registeredAt}</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
-            ))
-          )}
+          <View style={styles.sampleList}>
+            {registeredSamples.map(sample => {
+              const isSelected =
+                selectedSampleId === sample.id;
 
-          <View style={{ height: 110 }} />
+              return (
+                <TouchableOpacity
+                  key={sample.id}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.sampleRow,
+                    isSelected &&
+                      styles.sampleRowSelected,
+                  ]}
+                  onPress={() =>
+                    setSelectedSampleId(
+                      sample.id
+                    )
+                  }
+                >
+                  <View
+                    style={[
+                      styles.radioOuter,
+                      isSelected &&
+                        styles.radioOuterActive,
+                    ]}
+                  >
+                    {isSelected && (
+                      <View
+                        style={styles.radioInner}
+                      />
+                    )}
+                  </View>
+
+                  <View style={styles.sampleInfo}>
+                    <Text style={styles.sampleId}>
+                      {sample.id}
+                    </Text>
+
+                    <Text style={styles.sampleMeta}>
+                      {sample.variety} •{' '}
+                      {sample.grainCount} grains
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={{ height: 120 }} />
         </ScrollView>
 
         {/* FOOTER */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.proceedBtn}
-            onPress={() => navigation?.navigate('ImageCapture')}
+            style={[
+              styles.proceedButton,
+              !canProceed &&
+                styles.proceedButtonDisabled,
+            ]}
+            disabled={!canProceed}
             activeOpacity={0.85}
+            onPress={() =>
+              navigation?.navigate(
+                'ImageCapture',
+                {
+                  selectedSampleId,
+                }
+              )
+            }
           >
-            <Text style={styles.proceedBtnText}>Proceed to Image Capture  →</Text>
+            <Text
+              style={styles.proceedButtonText}
+            >
+              Proceed to Image Capture →
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -251,84 +468,87 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
 }
 
 const styles = StyleSheet.create({
+  keyboard: {
+    flex: 1,
+  },
+
   root: {
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
 
-  // Header
   header: {
     backgroundColor: GREEN,
+    paddingTop: 54,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 54,
-    paddingBottom: 26,
-    paddingHorizontal: 16,
-    gap: 12,
   },
+
   backButton: {
+    marginRight: 12,
     padding: 4,
-    marginRight: 4,
   },
+
   backArrow: {
     color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '300',
   },
+
   headerTitle: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
   },
+
   headerSubtitle: {
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
     fontSize: 13,
-    marginTop: 1,
   },
 
-  // Treatment Banner
-  treatmentBanner: {
+  banner: {
     backgroundColor: '#FFF8E8',
     borderBottomWidth: 1,
     borderBottomColor: '#FCD34D',
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  treatmentLabel: {
+
+  bannerLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: '#92400E',
-    marginBottom: 2,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginBottom: 2,
   },
-  treatmentValue: {
+
+  bannerValue: {
     fontSize: 13,
     color: '#B45309',
     fontWeight: '500',
   },
 
-  // Scroll
-  scroll: { flex: 1 },
+  scroll: {
+    flex: 1,
+  },
+
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
   },
 
-  // Card
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 16,
-    marginBottom: 20,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    marginBottom: 20,
   },
+
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -336,19 +556,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  // Fields
   field: {
     marginBottom: 14,
   },
+
   label: {
     fontSize: 13,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 6,
   },
+
   required: {
     color: '#DC2626',
   },
+
   input: {
     backgroundColor: '#F3F4F6',
     borderRadius: 10,
@@ -359,96 +581,98 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
+
   inputError: {
-    borderWidth: 1,
     borderColor: '#EF4444',
   },
+
   errorText: {
     fontSize: 12,
     color: '#EF4444',
     marginTop: 4,
   },
 
-  // Dropdown
   dropdown: {
     backgroundColor: '#F3F4F6',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
+
   dropdownPlaceholder: {
     fontSize: 15,
     color: '#9CA3AF',
   },
-  dropdownSelected: {
+
+  dropdownText: {
     fontSize: 15,
     color: '#111827',
   },
-  dropdownChevron: {
+
+  chevron: {
     fontSize: 10,
     color: '#6B7280',
   },
+
   dropdownList: {
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     marginTop: 4,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
   },
+
   dropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 13,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
+
   dropdownItemLast: {
     borderBottomWidth: 0,
   },
+
   dropdownItemText: {
     fontSize: 14,
     color: '#374151',
   },
+
   dropdownItemActive: {
     color: GREEN,
-    fontWeight: '600',
-  },
-  dropdownItemCheck: {
-    color: GREEN,
-    fontSize: 14,
     fontWeight: '700',
   },
 
-  // Register button (outlined style)
-  registerBtn: {
+  dropdownCheck: {
+    color: GREEN,
+    fontWeight: '700',
+  },
+
+  registerButton: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: '#D1D5DB',
-    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
-    backgroundColor: '#FAFAFA',
   },
-  registerBtnText: {
+
+  registerButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#374151',
   },
 
-  // Section title
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
@@ -456,100 +680,89 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Empty state
-  emptyState: {
+  sampleList: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 20,
-    alignItems: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#9CA3AF',
   },
 
-  // Sample card (registered list)
-  sampleCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  sampleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  sampleIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#DCFCE7',
-    borderWidth: 1.5,
-    borderColor: '#86EFAC',
+
+  sampleRowSelected: {
+    backgroundColor: '#F0FDF4',
+  },
+
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  sampleIconCheck: {
-    color: GREEN,
-    fontSize: 16,
-    fontWeight: '700',
+
+  radioOuterActive: {
+    borderColor: GREEN,
   },
+
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: GREEN,
+  },
+
   sampleInfo: {
     flex: 1,
   },
+
   sampleId: {
     fontSize: 15,
     fontWeight: '700',
     color: '#111827',
     marginBottom: 2,
   },
+
   sampleMeta: {
     fontSize: 13,
     color: '#6B7280',
-    marginBottom: 2,
-  },
-  sampleTime: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  chevron: {
-    fontSize: 22,
-    color: '#9CA3AF',
-    fontWeight: '300',
-    marginLeft: 8,
   },
 
-  // Footer
   footer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
+    bottom: 0,
     backgroundColor: '#FFFFFF',
-    padding: 14,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    padding: 14,
   },
-  proceedBtn: {
+
+  proceedButton: {
     backgroundColor: GREEN,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#006228',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  proceedBtnText: {
+
+  proceedButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
+  },
+
+  proceedButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
