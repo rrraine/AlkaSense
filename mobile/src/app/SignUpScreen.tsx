@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../core/firebase";
+import { registerUser } from "../core/api/auth";
 import {
   View,
   Text,
@@ -24,34 +27,55 @@ export default function SignUpScreen({ navigation }: any) {
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function handleSignUp() {
-    const newErrors: Record<string, string> = {};
+  async function handleSignUp() {
+  const newErrors: Record<string, string> = {};
 
-    if (!fullName.trim()) newErrors.fullName = "Full name is required.";
-    if (!email.trim()) {
-      newErrors.email = "Email address is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "Enter a valid email address.";
-    }
-    if (!role) newErrors.role = "Please select a role.";
-    if (!institution.trim()) newErrors.institution = "Institution is required.";
-    if (!password) {
-      newErrors.password = "Password is required.";
-    } else if (password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters.";
-    }
-    if (!confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password.";
-    } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match.";
-    }
+  if (!fullName.trim()) newErrors.fullName = "Full name is required.";
+  if (!email.trim()) newErrors.email = "Email is required.";
+  if (!role) newErrors.role = "Select a role.";
+  if (!institution.trim()) newErrors.institution = "Institution required.";
+  if (!password) newErrors.password = "Password required.";
+  if (password !== confirmPassword) newErrors.confirmPassword = "Passwords do not match.";
 
-    setErrors(newErrors);
+  setErrors(newErrors);
 
-    if (Object.keys(newErrors).length === 0) {
-      console.log("Form is valid, proceed with signup");
-    }
+  if (Object.keys(newErrors).length > 0) return;
+
+  try {
+    // 1. Create Firebase user
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const firebaseUser = userCredential.user;
+
+    // 2. Get Firebase token
+    const idToken = await firebaseUser.getIdToken();
+
+    // 3. Send to backend
+    const backendUser = await registerUser(idToken, {
+  firebase_uid: firebaseUser.uid,
+  email: firebaseUser.email,
+  full_name: fullName,
+  role,
+  institution,
+});
+
+console.log("BACKEND RESPONSE:", backendUser);
+
+
+    // 4. Navigate to dashboard
+    navigation.navigate("Dashboard");
+
+  } catch (error: any) {
+    console.log(
+      "SIGNUP ERROR:",
+      JSON.stringify(error, null, 2)
+    );
   }
+}
 
   return (
     <KeyboardAvoidingView

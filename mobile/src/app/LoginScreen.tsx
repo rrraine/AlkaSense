@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../core/firebase";
+
 import {
   View,
   Text,
@@ -17,25 +20,40 @@ export default function LoginScreen({ navigation }: any) {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function handleSignIn() {
-    const newErrors: Record<string, string> = {};
+  async function handleSignIn() {
+  const newErrors: Record<string, string> = {};
 
-    if (!email.trim()) {
-      newErrors.email = "Email address is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "Enter a valid email address.";
-    }
+  if (!email.trim()) newErrors.email = "Email required.";
+  if (!password) newErrors.password = "Password required.";
 
-    if (!password) {
-      newErrors.password = "Password is required.";
-    }
+  setErrors(newErrors);
 
-    setErrors(newErrors);
+  if (Object.keys(newErrors).length > 0) return;
 
-    if (Object.keys(newErrors).length === 0) {
-      navigation.navigate("Dashboard");
-    }
+  try {
+    // 1. Firebase login
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const firebaseUser = userCredential.user;
+
+    const idToken = await firebaseUser.getIdToken();
+
+    // 2. Optional: verify with backend later
+    await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    navigation.navigate("Dashboard");
+  } catch (error: any) {
+    console.log("Login failed:", error.message);
   }
+}
 
   return (
     <KeyboardAvoidingView
