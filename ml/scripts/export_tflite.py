@@ -1,6 +1,6 @@
 # scripts/export_tflite.py
 
-import os, yaml, glob, re
+import os, yaml, glob, re, argparse
 import tensorflow as tf
 
 with open("config/alkasense_config.yaml") as f:
@@ -27,10 +27,16 @@ def get_next_version() -> int:
     return max(versions) + 1
 
 
-def export():
-    model_path = get_latest_saved_model()
-    version    = get_next_version()
-    out_path   = f"{TFLITE_DIR}/alkasense_v{version}.tflite"
+def export(model_name: str = None):
+    if model_name:
+        model_path = os.path.join(SAVED_DIR, model_name)
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model not found: {model_path}")
+    else:
+        model_path = get_latest_saved_model()
+
+    version  = get_next_version()
+    out_path = f"{TFLITE_DIR}/alkasense_v{version}.tflite"
 
     print(f"[INFO] Converting: {model_path} → {out_path}")
 
@@ -49,4 +55,11 @@ def export():
 
 
 if __name__ == "__main__":
-    export()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default=None,
+                        help="Specific model folder name, e.g. alkasense_20260523_161638")
+    args = parser.parse_args()
+    export(model_name=args.model)
+
+
+    #python scripts/export_tflite.py --model alkasense_20260523_161638
