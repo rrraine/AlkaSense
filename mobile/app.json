@@ -1,6 +1,5 @@
 {
   "expo": {
-    
     "name": "AlkaSense",
     "slug": "mobile",
     "version": "1.0.0",
@@ -29,7 +28,9 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sharing",
+      "@react-native-community/datetimepicker"
     ],
     "sdkVersion": "54.0.0"
   }
