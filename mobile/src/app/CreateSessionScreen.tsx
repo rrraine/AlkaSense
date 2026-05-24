@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,31 +14,29 @@ import {
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { createSession, getActiveSession, SessionError } from '../services/SessionService';
+import { getUserById } from '../db/repositories/UserRepository';
+import type { User } from '../db/repositories/UserRepository';
+import { auth } from '../core/firebase';
 
 const GREEN = '#008236';
-
-// ─── Mock data for duplicate-name checking and active session check ───────────
-// Replace these with your actual API/store calls.
-
-const EXISTING_SESSION_NAMES = [
-  'Spring Harvest 2026',
-  'Summer Trial Batch A',
-];
-
-const HAS_ACTIVE_SESSION = true; // FR-M1-10: set from your store/API
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CreateSessionScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
+  const [initLoading, setInitLoading] = useState(true);
 
-  // Hamburg menu
   const [menuVisible, setMenuVisible] = useState(false);
-
-  // Date override (UI-only for now — actual override deferred)
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDateOverridden, setIsDateOverridden] = useState(false);
+
+  // Evaluator profile loaded from SQLite
+  const [evaluator, setEvaluator] = useState<User | null>(null);
+
+  // FR-M1-10: checked on mount
+  const [isRegisterBlocked, setIsRegisterBlocked] = useState(false);
 
   const [form, setForm] = useState({
     sessionName: '',
@@ -50,14 +48,36 @@ export default function CreateSessionScreen({ navigation }: any) {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // ─── On mount: load evaluator + check for active session ─────────────────
+
+  useEffect(() => {
+    async function init() {
+      try {
+        const firebaseUser = auth.currentUser;
+        if (firebaseUser) {
+          const user = await getUserById(firebaseUser.uid);
+          setEvaluator(user);
+        }
+
+        const active = await getActiveSession(firebaseUser?.uid ?? '');
+        setIsRegisterBlocked(active !== null);
+      } catch (err) {
+        console.error('CreateSessionScreen init error:', err);
+      } finally {
+        setInitLoading(false);
+      }
+    }
+    init();
+  }, []);
+
+  // ─── Field helpers ────────────────────────────────────────────────────────
+
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
-    // Clear field error on change
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   }
 
-  // ─── FR-M1-08: All required fields must be filled ─────────────────────────
-
+  // FR-M1-08: all required fields must be filled before the button enables
   const allFieldsFilled =
     form.sessionName.trim() !== '' &&
     form.batchIdentifier.trim() !== '' &&
@@ -65,54 +85,64 @@ export default function CreateSessionScreen({ navigation }: any) {
     form.incubationDuration.trim() !== '' &&
     form.incubationTemperature.trim() !== '';
 
-  // ─── FR-M1-10: Block if active session exists ─────────────────────────────
+  // ─── Submit ───────────────────────────────────────────────────────────────
 
-  const isRegisterBlocked = HAS_ACTIVE_SESSION;
-
-  // ─── Validate and submit ──────────────────────────────────────────────────
-
-  function handleStartSession() {
+  async function handleStartSession() {
     const newErrors: Record<string, string> = {};
 
-    // FR-M1-08: empty field guard (belt-and-suspenders with disabled button)
-    if (!form.sessionName.trim()) newErrors.sessionName = 'Session name is required.';
-    if (!form.batchIdentifier.trim()) newErrors.batchIdentifier = 'Batch identifier is required.';
-    if (!form.kohConcentration.trim()) newErrors.kohConcentration = 'KOH concentration is required.';
-    if (!form.incubationDuration.trim()) newErrors.incubationDuration = 'Incubation duration is required.';
-    if (!form.incubationTemperature.trim()) newErrors.incubationTemperature = 'Incubation temperature is required.';
+    // Basic empty-field guards (belt-and-suspenders with the disabled button)
+    if (!form.sessionName.trim())
+      newErrors.sessionName = 'Session name is required.';
+    if (!form.batchIdentifier.trim())
+      newErrors.batchIdentifier = 'Batch identifier is required.';
+    if (!form.kohConcentration.trim())
+      newErrors.kohConcentration = 'KOH concentration is required.';
+    if (!form.incubationDuration.trim())
+      newErrors.incubationDuration = 'Incubation duration is required.';
+    if (!form.incubationTemperature.trim())
+      newErrors.incubationTemperature = 'Incubation temperature is required.';
 
-    // FR-M1-05: Duplicate session name check
-    const nameTrimmed = form.sessionName.trim();
-    if (
-      nameTrimmed &&
-      EXISTING_SESSION_NAMES.some(
-        (n) => n.toLowerCase() === nameTrimmed.toLowerCase()
-      )
-    ) {
-      newErrors.sessionName =
-        'A session with this name already exists. Please use a different name.';
-    }
+    // Numeric range guards
+    const koh = parseFloat(form.kohConcentration);
+    if (!isNaN(koh) && (koh <= 0 || koh > 100))
+      newErrors.kohConcentration = 'KOH concentration must be between 0 and 100.';
+
+    const duration = parseFloat(form.incubationDuration);
+    if (!isNaN(duration) && duration <= 0)
+      newErrors.incubationDuration = 'Incubation duration must be greater than 0.';
+
+    const temp = parseFloat(form.incubationTemperature);
+    if (!isNaN(temp) && (temp < 0 || temp > 100))
+      newErrors.incubationTemperature = 'Temperature must be between 0 °C and 100 °C.';
 
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     setLoading(true);
-
-    // TODO: call your API here
-    setTimeout(() => {
-      setLoading(false);
-
-      // FR-M1-09: Auto-navigate to Sample Registration after session is created
-      navigation?.navigate('RegisterSample', {
-        sessionName: form.sessionName.trim(),
-        batchIdentifier: form.batchIdentifier.trim(),
-        kohConcentration: form.kohConcentration.trim(),
-        incubationDuration: form.incubationDuration.trim(),
-        incubationTemperature: form.incubationTemperature.trim(),
-        evaluationDate: selectedDate.toISOString(),
+    try {
+      const session = await createSession({
+        evaluator_id: evaluator?.id ?? auth.currentUser?.uid ?? '',
+        name: form.sessionName.trim(),
+        batch_identifier: form.batchIdentifier.trim(),
+        koh_concentration: koh,
+        incubation_duration: duration,
+        incubation_temp: temp,
+        // Only send evaluation_date when the user manually overrode it
+        ...(isDateOverridden ? { evaluation_date: selectedDate.toISOString() } : {}),
       });
 
-      // Reset
+      // FR-M1-09: auto-navigate to Sample Registration after session is created
+      navigation?.navigate('RegisterSample', {
+        sessionId: session.id,
+        sessionName: session.name,
+        batchIdentifier: session.batch_identifier,
+        kohConcentration: session.koh_concentration,
+        incubationDuration: session.incubation_duration,
+        incubationTemperature: session.incubation_temp,
+        evaluationDate: session.evaluation_date,
+      });
+
+      // Reset form
       setForm({
         sessionName: '',
         batchIdentifier: '',
@@ -122,7 +152,37 @@ export default function CreateSessionScreen({ navigation }: any) {
       });
       setSelectedDate(new Date());
       setIsDateOverridden(false);
-    }, 800);
+
+    } catch (err) {
+      if (err instanceof SessionError) {
+        if (err.field === 'activeSession') {
+          setIsRegisterBlocked(true);
+        } else if (err.field) {
+          // Surface uniqueness errors on the relevant field
+          setErrors((prev) => ({ ...prev, [err.field!]: err.message }));
+        } else {
+          setErrors((prev) => ({ ...prev, sessionName: err.message }));
+        }
+      } else {
+        console.error('Unexpected error creating session:', err);
+        setErrors((prev) => ({
+          ...prev,
+          sessionName: 'Something went wrong. Please try again.',
+        }));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ─── UI ───────────────────────────────────────────────────────────────────
+
+  if (initLoading) {
+    return (
+      <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={GREEN} size="large" />
+      </View>
+    );
   }
 
   return (
@@ -134,13 +194,13 @@ export default function CreateSessionScreen({ navigation }: any) {
 
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation?.goBack()}
+          >
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
-
           <Text style={styles.headerTitle}>Create New Session</Text>
-
-          {/* FR-M1-02: Hamburg menu */}
           <TouchableOpacity
             style={styles.hamburger}
             onPress={() => setMenuVisible(true)}
@@ -165,6 +225,7 @@ export default function CreateSessionScreen({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+
           {/* PROFILE CARD */}
           <View style={styles.profileCard}>
             <View style={styles.avatar}>
@@ -174,8 +235,14 @@ export default function CreateSessionScreen({ navigation }: any) {
               />
             </View>
             <View>
-              <Text style={styles.profileName}>Evaluator Name</Text>
-              <Text style={styles.profileRole}>Role • PhilRice</Text>
+              <Text style={styles.profileName}>
+                {evaluator?.name ?? 'Evaluator'}
+              </Text>
+              <Text style={styles.profileRole}>
+                {evaluator
+                  ? `${evaluator.role} • ${evaluator.institution}`
+                  : 'PhilRice'}
+              </Text>
             </View>
           </View>
 
@@ -217,7 +284,7 @@ export default function CreateSessionScreen({ navigation }: any) {
               )}
             </View>
 
-            {/* DATE */}
+            {/* Evaluation Date */}
             <View style={styles.field}>
               <Text style={styles.label}>
                 Evaluation Date
@@ -239,8 +306,8 @@ export default function CreateSessionScreen({ navigation }: any) {
                   value={selectedDate}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(_, date?: Date) => {
-                    setShowDatePicker(false);
+                  onChange={(_event, date) => {
+                    setShowDatePicker(Platform.OS === 'ios');
                     if (date) {
                       setSelectedDate(date);
                       setIsDateOverridden(true);
@@ -254,46 +321,55 @@ export default function CreateSessionScreen({ navigation }: any) {
           {/* TREATMENT PARAMETERS */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Treatment Parameters</Text>
-            <Text style={styles.cardSubtitle}>Following IRRI Standard Protocol</Text>
+            <Text style={styles.cardSubtitle}>
+              IRRI Standard Protocol — adjust only if deviating from protocol.
+            </Text>
 
-            <View style={styles.row}>
-              <View style={[styles.field, styles.halfField]}>
-                <Text style={styles.label}>
-                  KOH Concentration (%) <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, !!errors.kohConcentration && styles.inputError]}
-                  value={form.kohConcentration}
-                  onChangeText={(v) => updateField('kohConcentration', v)}
-                  keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
-                />
-                {!!errors.kohConcentration && (
-                  <Text style={styles.errorText}>{errors.kohConcentration}</Text>
-                )}
-              </View>
-
-              <View style={[styles.field, styles.halfField]}>
-                <Text style={styles.label}>
-                  Duration (hours) <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, !!errors.incubationDuration && styles.inputError]}
-                  value={form.incubationDuration}
-                  onChangeText={(v) => updateField('incubationDuration', v)}
-                  keyboardType="numeric"
-                />
-                {!!errors.incubationDuration && (
-                  <Text style={styles.errorText}>{errors.incubationDuration}</Text>
-                )}
-              </View>
+            {/* KOH Concentration */}
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                KOH Concentration (%) <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, !!errors.kohConcentration && styles.inputError]}
+                placeholder="e.g., 1.7"
+                placeholderTextColor="#9CA3AF"
+                value={form.kohConcentration}
+                onChangeText={(v) => updateField('kohConcentration', v)}
+                keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+              />
+              {!!errors.kohConcentration && (
+                <Text style={styles.errorText}>{errors.kohConcentration}</Text>
+              )}
             </View>
 
+            {/* Incubation Duration */}
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Incubation Duration (hrs) <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, !!errors.incubationDuration && styles.inputError]}
+                placeholder="e.g., 23"
+                placeholderTextColor="#9CA3AF"
+                value={form.incubationDuration}
+                onChangeText={(v) => updateField('incubationDuration', v)}
+                keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+              />
+              {!!errors.incubationDuration && (
+                <Text style={styles.errorText}>{errors.incubationDuration}</Text>
+              )}
+            </View>
+
+            {/* Incubation Temperature */}
             <View style={styles.field}>
               <Text style={styles.label}>
                 Incubation Temperature (°C) <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
                 style={[styles.input, !!errors.incubationTemperature && styles.inputError]}
+                placeholder="e.g., 30"
+                placeholderTextColor="#9CA3AF"
                 value={form.incubationTemperature}
                 onChangeText={(v) => updateField('incubationTemperature', v)}
                 keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
@@ -309,7 +385,6 @@ export default function CreateSessionScreen({ navigation }: any) {
 
         {/* FOOTER */}
         <View style={styles.footer}>
-          {/* FR-M1-08 + FR-M1-10: Button disabled when fields empty OR active session exists */}
           <TouchableOpacity
             style={[
               styles.startButton,
@@ -339,7 +414,7 @@ export default function CreateSessionScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* ─── FR-M1-02: Hamburg Menu Modal ───────────────────────────────────── */}
+      {/* ─── FR-M1-02: Hamburg Menu Modal ─────────────────────────────────── */}
       <Modal
         visible={menuVisible}
         transparent
@@ -354,26 +429,31 @@ export default function CreateSessionScreen({ navigation }: any) {
           <View style={styles.menuSheet}>
             <Text style={styles.menuTitle}>Session Options</Text>
 
-            {/* Evaluation Date Manual Override */}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                // Show date picker for manual override (actual backdating deferred)
                 setShowDatePicker(true);
               }}
             >
               <Text style={styles.menuItemIcon}>📅</Text>
               <View style={styles.menuItemBody}>
-                <Text style={styles.menuItemTitle}>Evaluation Date Manual Override</Text>
+                <Text style={styles.menuItemTitle}>
+                  Evaluation Date Manual Override
+                </Text>
                 <Text style={styles.menuItemSubtitle}>
                   Backdate the evaluation date for this session.{'\n'}
-                  <Text style={styles.menuItemNote}>(Actual override is pending implementation)</Text>
+                  <Text style={styles.menuItemNote}>
+                    (Actual override is pending implementation)
+                  </Text>
                 </Text>
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuCancel} onPress={() => setMenuVisible(false)}>
+            <TouchableOpacity
+              style={styles.menuCancel}
+              onPress={() => setMenuVisible(false)}
+            >
               <Text style={styles.menuCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -382,6 +462,8 @@ export default function CreateSessionScreen({ navigation }: any) {
     </KeyboardAvoidingView>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F3F4F6' },
@@ -396,7 +478,12 @@ const styles = StyleSheet.create({
   },
   backButton: { marginRight: 12 },
   backArrow: { color: '#FFFFFF', fontSize: 24 },
-  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', flex: 1 },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+    flex: 1,
+  },
   hamburger: { padding: 4 },
   hamburgerIcon: { color: '#FFFFFF', fontSize: 22 },
 
@@ -447,8 +534,6 @@ const styles = StyleSheet.create({
   cardSubtitle: { fontSize: 13, color: '#6B7280', marginBottom: 10 },
 
   field: { marginBottom: 14 },
-  row: { flexDirection: 'row', gap: 12 },
-  halfField: { flex: 1 },
   label: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
   required: { color: '#DC2626' },
   overrideBadge: { color: '#B45309', fontWeight: '600', fontSize: 11 },
@@ -484,9 +569,13 @@ const styles = StyleSheet.create({
   },
   startButtonDisabled: { backgroundColor: '#9CA3AF', opacity: 0.7 },
   startButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  disabledHint: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 6 },
+  disabledHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 6,
+  },
 
-  // ── Modal styles ──
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -499,7 +588,12 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 36,
   },
-  menuTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 18 },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 18,
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -513,7 +607,12 @@ const styles = StyleSheet.create({
   },
   menuItemIcon: { fontSize: 22, marginTop: 2 },
   menuItemBody: { flex: 1 },
-  menuItemTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 3 },
+  menuItemTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 3,
+  },
   menuItemSubtitle: { fontSize: 13, color: '#6B7280', lineHeight: 18 },
   menuItemNote: { fontSize: 11, color: '#B45309', fontStyle: 'italic' },
   menuCancel: {
