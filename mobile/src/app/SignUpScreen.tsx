@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../core/firebase";
 import { registerUser } from "../core/api/auth";
+
+import { insertUser } from "../db/repositories/UserRepository";
+
 import {
   View,
   Text,
@@ -118,6 +121,16 @@ export default function SignUpScreen({ navigation }: any) {
       const firebaseUser = userCredential.user;
       const idToken = await firebaseUser.getIdToken();
 
+      // Save to local SQLite
+      await insertUser({
+        firebase_uid: firebaseUser.uid,
+        email: firebaseUser.email ?? email.trim(),
+        full_name: fullName,
+        role,
+        institution,
+      });
+
+      // Send to backend
       const backendUser = await registerUser(idToken, {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,

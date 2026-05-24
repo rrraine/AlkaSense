@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth"; 
 import { auth } from "../core/firebase";
 
+import { getUserById } from "../db/repositories/UserRepository";
+
 import {
   View,
   Text,
@@ -80,6 +82,12 @@ export default function LoginScreen({ navigation }: any) {
       console.log("USER:", firebaseUser.email);
 
       const idToken = await firebaseUser.getIdToken();
+
+      // Load user from SQLite
+      const localUser = await getUserById(firebaseUser.uid);
+      console.log("LOCAL USER:", localUser);
+
+      navigation.navigate("Dashboard");
 
       console.log("TOKEN SUCCESS");
 
