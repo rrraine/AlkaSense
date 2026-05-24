@@ -15,8 +15,6 @@ import {
 
 const ROLES = ["Researcher", "Field Evaluator", "Lab Technician", "Administrator"];
 
-// ─── Validation helpers ───────────────────────────────────────────────────────
-
 function validateEmail(email: string): string {
   if (!email.trim()) return "Email is required.";
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,8 +41,6 @@ function checkPassword(password: string): PasswordStrength {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 function PasswordRuleRow({ label, passed }: { label: string; passed: boolean }) {
   return (
     <View style={ruleStyles.row}>
@@ -65,8 +61,6 @@ const ruleStyles = StyleSheet.create({
   pass: { color: "#16A34A" },
   fail: { color: "#9CA3AF" },
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function SignUpScreen({ navigation }: any) {
   const [fullName, setFullName] = useState("");
@@ -127,7 +121,22 @@ export default function SignUpScreen({ navigation }: any) {
       });
 
       console.log("BACKEND RESPONSE:", backendUser);
-      navigation.navigate("Login");
+
+      // Reset all fields
+      setFullName("");
+      setEmail("");
+      setRole("");
+      setInstitution("");
+      setPassword("");
+      setConfirmPassword("");
+      setErrors({});
+      setFirebaseError("");
+
+      //Clear the stack and go to Login
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      });
     } catch (error: any) {
       console.log("SIGNUP ERROR:", JSON.stringify(error, null, 2));
       if (error.code === "auth/email-already-in-use") {
@@ -277,7 +286,6 @@ export default function SignUpScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            {/* PASSWORD STRENGTH RULES — shown when focused or has content */}
             {(passwordFocused || password.length > 0) && (
               <View style={styles.passwordRulesBox}>
                 {passwordStrength.rules.map((rule) => (
