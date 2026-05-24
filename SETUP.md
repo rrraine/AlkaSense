@@ -137,7 +137,25 @@ deactivate
 
 ### A. Firebase (each teammate must do this individually)
 
-#### Backend — Service Account Key
+#### Mobile App
+1. Go to [firebase.google.com](https://firebase.google.com) → **AlkaSense project**.
+2. Click **gear icon** → **Project Settings** → **General** → **Your apps** → **Web apps (alkasense-backend)**.
+3. Copy the values of `firebaseConfig`.
+4. Create `mobile/.env` and fill in the values:
+
+```env
+EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+EXPO_PUBLIC_APP_ENV=development
+
+EXPO_PUBLIC_FIREBASE_API_KEY=AIzaSy...
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+EXPO_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef
+```
+
+#### Backend Server
 1. Go to [firebase.google.com](https://firebase.google.com) → **AlkaSense project**.
 2. Click **gear icon** → **Project Settings** → **Service accounts** tab.
 3. Click **Generate new private key** → **Generate key**.
@@ -157,21 +175,6 @@ SECRET_KEY=alkasense-secret-change-this-later
 > Only place it in `backend/.env`. If you suspect your credentials are
 > exposed, contact the full-stack lead immediately so the key can be
 > revoked and regenerated.
-
-#### Frontend — google-services.json
-1. Go to [firebase.google.com](https://firebase.google.com) → **AlkaSense project**.
-2. Click **gear icon** → **Project Settings** → **General** tab.
-3. Scroll to **Your apps** → click **AlkaSense Mobile (Android)**.
-4. Click **Download google-services.json**.
-5. Place the file inside your `mobile/` folder:
-
-```
-mobile/
-└── google-services.json   ← here
-```
-
-> ⚠️ **Never commit `google-services.json` to GitHub.**
-> It is already listed in `mobile/.gitignore`.
 
 ---
 
