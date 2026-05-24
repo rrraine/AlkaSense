@@ -10,11 +10,13 @@ import {
 
 const GREEN = '#008236';
 
+// FR-M2-02: These items are aligned with the Positioning Guidelines Checklist
+// shown in ImageCaptureScreen, so both panels display consistent criteria.
 const CHECKLIST = [
-  'Grains within alignment guide',
-  'Even lighting confirmed',
-  '15cm distance maintained',
-  'No shadows or reflections',
+  'Place grains within the dashed guide',
+  'Ensure even lighting across the sample',
+  'Maintain 15cm camera distance',
+  'Avoid shadows and reflections',
 ];
 
 export default function ImagePreviewScreen({ navigation, route }: any) {

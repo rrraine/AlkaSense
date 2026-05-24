@@ -188,8 +188,9 @@ export default function AiScoreConfirmation({
   // State
   // ───────────────────────────────────────────────────────────────────────────
 
+  // ─── FR-M3-29: Pre-populate the final ASV score with the AI draft score ───
   const [selectedScore, setSelectedScore] =
-    useState<number | null>(null);
+    useState<number | null>(aiDraftScore ?? null);
 
   const [deviationRemark, setDeviationRemark] =
     useState('');

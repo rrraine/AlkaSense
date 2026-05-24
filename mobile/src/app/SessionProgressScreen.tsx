@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
+  Modal,
+  Platform,
 } from 'react-native';
+
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const GREEN = '#008236';
 const GREEN_DARK = '#0E9F45';
@@ -40,12 +44,12 @@ const SAMPLES = [
   {
     id: 'S004',
     variety: 'IR64',
-    status: 'Pending',
+    status: 'Image Submitted',
   },
   {
     id: 'S005',
     variety: 'PSB Rc 82',
-    status: 'Registered',
+    status: 'Pending',
   },
 ] as const;
 
@@ -97,14 +101,14 @@ function StatusBadge({ status }: { status: string }) {
   const badgeStyle =
     status === 'Confirmed'
       ? styles.badgeConfirmed
-      : status === 'Pending'
+      : status === 'Image Submitted'
       ? styles.badgePending
-      : styles.badgeRegistered;
+      : styles.badgeRegistered; // 'Pending' (new label for formerly 'Registered')
 
   const textStyle =
     status === 'Confirmed'
       ? styles.badgeTextConfirmed
-      : status === 'Pending'
+      : status === 'Image Submitted'
       ? styles.badgeTextPending
       : styles.badgeTextRegistered;
 
@@ -125,7 +129,7 @@ function SampleCard({
   navigation: any;
 }) {
   function handleNavigation() {
-    if (sample.status === 'Registered') {
+    if (sample.status === 'Pending') {
       navigation.navigate('ImageCapture', {
         sampleId: sample.id,
         variety: sample.variety,
@@ -134,7 +138,7 @@ function SampleCard({
       return;
     }
 
-    if (sample.status === 'Pending') {
+    if (sample.status === 'Image Submitted') {
       navigation.navigate('ExpertObservation', {
         sampleId: sample.id,
         variety: sample.variety,
@@ -290,6 +294,13 @@ function ASVChart() {
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function SessionProgressScreen({ navigation }: any) {
+  // ─── FR-M1-02: Hamburg menu + evaluation date override ───────────────────
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [evaluationDate, setEvaluationDate] = useState<Date>(new Date(2026, 4, 15)); // May 15 2026
+  const [isDateOverridden, setIsDateOverridden] = useState(false);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const total = SAMPLES.length;
 
   const completed = SAMPLES.filter(
@@ -297,7 +308,7 @@ export default function SessionProgressScreen({ navigation }: any) {
   ).length;
 
   const pending = SAMPLES.filter(
-    (s) => s.status === 'Pending'
+    (s) => s.status === 'Image Submitted'
   ).length;
 
   const flagged = SAMPLES.filter(
@@ -305,7 +316,8 @@ export default function SessionProgressScreen({ navigation }: any) {
   ).length;
 
   return (
-    <View style={styles.root}>
+    <>
+      <View style={styles.root}>
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -319,7 +331,7 @@ export default function SessionProgressScreen({ navigation }: any) {
             </TouchableOpacity>
 
             <TouchableOpacity>
-              <Text style={styles.navIcon}>☰</Text>
+              <Text style={styles.navIcon} onPress={() => setMenuVisible(true)}>☰</Text>
             </TouchableOpacity>
 
           </View>
@@ -338,7 +350,7 @@ export default function SessionProgressScreen({ navigation }: any) {
             </Text>
 
             <Text style={styles.metaText}>
-              📅 May 15, 2026
+              📅 {evaluationDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}{isDateOverridden ? ' ⚡' : ''}
             </Text>
           </View>
 
@@ -347,7 +359,7 @@ export default function SessionProgressScreen({ navigation }: any) {
             {[
               { label: 'Total', value: total },
               { label: 'Completed', value: completed },
-              { label: 'Pending', value: pending },
+              { label: 'Image Submitted', value: pending },
               { label: 'Flagged', value: flagged },
             ].map((stat) => (
               <View key={stat.label} style={styles.statItem}>
@@ -484,6 +496,67 @@ export default function SessionProgressScreen({ navigation }: any) {
       </View>
 
     </View>
+
+      {/* ─── FR-M1-02: Hamburg Menu Modal ─────────────────────────────────── */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={menuStyles.overlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={menuStyles.sheet}>
+            <Text style={menuStyles.title}>Session Options</Text>
+
+            <TouchableOpacity
+              style={menuStyles.item}
+              onPress={() => {
+                setMenuVisible(false);
+                setShowDatePicker(true);
+              }}
+            >
+              <Text style={menuStyles.itemIcon}>📅</Text>
+              <View style={menuStyles.itemBody}>
+                <Text style={menuStyles.itemTitle}>Evaluation Date Manual Override</Text>
+                <Text style={menuStyles.itemSubtitle}>
+                  Backdate the evaluation date for this session.
+                </Text>
+                <Text style={menuStyles.itemNote}>
+                  (Actual override is pending implementation)
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={menuStyles.cancel}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Text style={menuStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Date Picker for override */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={evaluationDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(_, date?: Date) => {
+            setShowDatePicker(false);
+            if (date) {
+              setEvaluationDate(date);
+              setIsDateOverridden(true);
+            }
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -915,4 +988,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+});
+
+const menuStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  title: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 18 },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  itemIcon: { fontSize: 22, marginTop: 2 },
+  itemBody: { flex: 1 },
+  itemTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 3 },
+  itemSubtitle: { fontSize: 13, color: '#6B7280', lineHeight: 18 },
+  itemNote: { fontSize: 11, color: '#B45309', fontStyle: 'italic', marginTop: 2 },
+  cancel: {
+    marginTop: 4,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+  },
+  cancelText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
 });
