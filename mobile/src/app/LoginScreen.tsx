@@ -55,6 +55,7 @@ export default function LoginScreen({ navigation }: any) {
     const passErr = validatePassword(password);
 
     const newErrors: Record<string, string> = {};
+
     if (emailErr) newErrors.email = emailErr;
     if (passErr) newErrors.password = passErr;
 
@@ -64,35 +65,34 @@ export default function LoginScreen({ navigation }: any) {
     if (Object.keys(newErrors).length > 0) return;
 
     try {
+      console.log("START LOGIN");
+
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
         password
       );
 
+      console.log("FIREBASE LOGIN SUCCESS");
+
       const firebaseUser = userCredential.user;
+
+      console.log("USER:", firebaseUser.email);
+
       const idToken = await firebaseUser.getIdToken();
 
-      await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
+      console.log("TOKEN SUCCESS");
+
+      // TEMPORARILY REMOVE BACKEND CALL
+      // await fetch(...)
 
       navigation.navigate("Dashboard");
     } catch (error: any) {
-      console.log("Login failed:", error.message);
-      if (
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/invalid-credential"
-      ) {
-        setFirebaseError("Incorrect email or password. Please try again.");
-      } else if (error.code === "auth/too-many-requests") {
-        setFirebaseError("Too many attempts. Please try again later.");
-      } else {
-        setFirebaseError("Sign in failed. Please try again.");
-      }
+      console.log("FULL LOGIN ERROR:", JSON.stringify(error, null, 2));
+      console.log("ERROR CODE:", error.code);
+      console.log("ERROR MESSAGE:", error.message);
+
+      setFirebaseError(error.message);
     }
   }
 
