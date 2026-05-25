@@ -1,120 +1,346 @@
 import db from '../database';
 
-export type Sample = {
-  id: string;
-  session_id: string;
-  variety_name: string;
-  asv_score: number;
-  gt_class: string;
-  confidence: number;
-  image_path: string;
-  heatmap_path?: string;
-  captured_at: string;
-  synced: number;
-};
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
 
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+export type SampleStatus =
+  | 'Pending'
+  | 'Image Submitted'
+  | 'Confirmed';
+
+export type RiceVariety =
+  | 'NSIC Rc 222'
+  | 'NSIC Rc 160'
+  | 'PSB Rc 18'
+  | 'PSB Rc 82'
+  | 'IR64'
+  | 'IR72';
+
+export type GTClass =
+  | 'Null'
+  | 'Low GT'
+  | 'Intermediate GT'
+  | 'High GT';
+
+export interface Sample {
+  id: string;
+
+  session_id: string;
+
+  sample_identifier: string;
+
+  grain_count: number;
+
+  rice_variety: RiceVariety;
+
+  status: SampleStatus;
+
+  asv_score: number;
+
+  gt_class: GTClass;
+
+  created_at: string;
 }
+
+export interface CreateSamplePayload {
+  session_id: string;
+
+  sample_identifier: string;
+
+  grain_count: number;
+
+  rice_variety: RiceVariety;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+    .replace(/[xy]/g, (c) => {
+
+      const r = (Math.random() * 16) | 0;
+
+      const v =
+        c === 'x'
+          ? r
+          : (r & 0x3) | 0x8;
+
+      return v.toString(16);
+    });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Repository
+// ─────────────────────────────────────────────────────────────
 
 export class SampleRepository {
 
-  async create(data: Omit<Sample, 'id' | 'captured_at' | 'synced'>): Promise<Sample> {
-    const id = generateUUID(); 
+  // ───────────────────────────────────────────────────────────
+  // Create Sample
+  // ───────────────────────────────────────────────────────────
 
-    // Transactional insert — if anything fails, nothing is saved
-    await db.withTransactionAsync(async () => {
-      await db.runAsync(
-        `INSERT INTO samples 
-          (id, session_id, variety_name, asv_score, gt_class, confidence, image_path, heatmap_path)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          data.session_id,
-          data.variety_name,
-          data.asv_score,
-          data.gt_class,
-          data.confidence,
-          data.image_path,
-          data.heatmap_path ?? null,
-        ]
-      );
+  async create(
+    payload: CreateSamplePayload
+  ): Promise<Sample> {
 
-      // Audit log entry
-      await db.runAsync(
-        `INSERT INTO audit_log (id, action, entity, entity_id, details)
-         VALUES (?, 'CREATE', 'sample', ?, ?)`,
-        [
-          generateUUID(), // 4. Replaced here
-          id,
-          JSON.stringify({ asv_score: data.asv_score, variety: data.variety_name })
-        ]
-      );
-    });
+    const id = generateUUID();
 
-    return this.getById(id);
+    await db.runAsync(
+      `
+      INSERT INTO samples (
+        id,
+        session_id,
+        sample_identifier,
+        grain_count,
+        rice_variety
+      )
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        id,
+        payload.session_id,
+        payload.sample_identifier.trim(),
+        payload.grain_count,
+        payload.rice_variety,
+      ]
+    );
+
+    return await this.getById(id);
   }
 
+  // ───────────────────────────────────────────────────────────
+  // Get By ID
+  // ───────────────────────────────────────────────────────────
+
   async getById(id: string): Promise<Sample> {
-    const row = await db.getFirstAsync<Sample>(
-      `SELECT * FROM samples WHERE id = ?`, [id]
-    );
-    if (!row) throw new Error(`Sample ${id} not found`);
+
+    const row =
+      await db.getFirstAsync<Sample>(
+        `
+        SELECT *
+        FROM samples
+        WHERE id = ?
+        `,
+        [id]
+      );
+
+    if (!row) {
+      throw new Error(
+        `Sample ${id} not found`
+      );
+    }
+
     return row;
   }
 
-  async getBySession(sessionId: string): Promise<Sample[]> {
+  // ───────────────────────────────────────────────────────────
+  // Get By Session
+  // ───────────────────────────────────────────────────────────
+
+  async getBySession(
+    sessionId: string
+  ): Promise<Sample[]> {
+
     return await db.getAllAsync<Sample>(
-      `SELECT * FROM samples WHERE session_id = ? ORDER BY captured_at ASC`,
+      `
+      SELECT *
+      FROM samples
+      WHERE session_id = ?
+      ORDER BY created_at ASC
+      `,
       [sessionId]
     );
   }
 
-  async updateHeatmap(id: string, heatmapPath: string): Promise<void> {
-    await db.runAsync(
-      `UPDATE samples SET heatmap_path = ? WHERE id = ?`,
-      [heatmapPath, id]
-    );
-  }
+  // ───────────────────────────────────────────────────────────
+  // Get By Status
+  // ───────────────────────────────────────────────────────────
 
-  async logCorrection(
-    sampleId: string,
-    originalScore: number,
-    correctedScore: number,
-    reason?: string
-  ): Promise<void> {
-    await db.withTransactionAsync(async () => {
-      await db.runAsync(
-        `INSERT INTO correction_log (id, sample_id, original_score, corrected_score, reason)
-         VALUES (?, ?, ?, ?, ?)`,
-        [generateUUID(), sampleId, originalScore, correctedScore, reason ?? null] // 5. Replaced here
-      );
+  async getByStatus(
+    sessionId: string,
+    status: SampleStatus
+  ): Promise<Sample[]> {
 
-      await db.runAsync(
-        `INSERT INTO audit_log (id, action, entity, entity_id, details)
-         VALUES (?, 'CORRECTION', 'sample', ?, ?)`,
-        [
-          generateUUID(), // 6. Replaced here
-          sampleId,
-          JSON.stringify({ from: originalScore, to: correctedScore, reason })
-        ]
-      );
-    });
-  }
-
-  async getUnsynced(): Promise<Sample[]> {
     return await db.getAllAsync<Sample>(
-      `SELECT * FROM samples WHERE synced = 0`
+      `
+      SELECT *
+      FROM samples
+      WHERE
+        session_id = ?
+        AND status = ?
+      ORDER BY created_at ASC
+      `,
+      [sessionId, status]
     );
   }
 
-  async markSynced(id: string): Promise<void> {
+  // ───────────────────────────────────────────────────────────
+  // Identifier Exists
+  // ───────────────────────────────────────────────────────────
+
+  async identifierExists(
+    sampleIdentifier: string,
+    sessionId: string,
+    excludeId?: string
+  ): Promise<boolean> {
+
+    const row =
+      await db.getFirstAsync<{ count: number }>(
+        `
+        SELECT COUNT(*) as count
+        FROM samples
+        WHERE
+          LOWER(sample_identifier) =
+          LOWER(?)
+          AND session_id = ?
+          ${excludeId ? 'AND id != ?' : ''}
+        `,
+        excludeId
+          ? [
+              sampleIdentifier.trim(),
+              sessionId,
+              excludeId,
+            ]
+          : [
+              sampleIdentifier.trim(),
+              sessionId,
+            ]
+      );
+
+    return (row?.count ?? 0) > 0;
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Update Status
+  // ───────────────────────────────────────────────────────────
+
+  async updateStatus(
+    id: string,
+    status: SampleStatus
+  ): Promise<void> {
+
     await db.runAsync(
-      `UPDATE samples SET synced = 1 WHERE id = ?`, [id]
+      `
+      UPDATE samples
+      SET status = ?
+      WHERE id = ?
+      `,
+      [status, id]
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Update Score
+  // ───────────────────────────────────────────────────────────
+
+  async updateScore(
+    id: string,
+    asvScore: number,
+    gtClass: GTClass
+  ): Promise<void> {
+
+    await db.runAsync(
+      `
+      UPDATE samples
+      SET
+        asv_score = ?,
+        gt_class = ?,
+        status = 'Confirmed'
+      WHERE id = ?
+      `,
+      [
+        asvScore,
+        gtClass,
+        id,
+      ]
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Count By Session
+  // ───────────────────────────────────────────────────────────
+
+  async getCountBySession(
+    sessionId: string
+  ): Promise<number> {
+
+    const row =
+      await db.getFirstAsync<{ count: number }>(
+        `
+        SELECT COUNT(*) as count
+        FROM samples
+        WHERE session_id = ?
+        `,
+        [sessionId]
+      );
+
+    return row?.count ?? 0;
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Attach Image
+  // ───────────────────────────────────────────────────────────
+
+  async attachImage(
+    sampleId: string,
+    imagePath: string,
+    validationStatus: string
+  ): Promise<string> {
+
+    const imageId = generateUUID();
+
+    await db.runAsync(
+      `
+      INSERT INTO grain_images (
+        id,
+        sample_id,
+        file_path,
+        validation_status
+      )
+      VALUES (?, ?, ?, ?)
+      `,
+      [
+        imageId,
+        sampleId,
+        imagePath,
+        validationStatus,
+      ]
+    );
+
+    return imageId;
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Get Image
+  // ───────────────────────────────────────────────────────────
+
+  async getImage(sampleId: string) {
+
+    return await db.getFirstAsync(
+      `
+      SELECT *
+      FROM grain_images
+      WHERE sample_id = ?
+      `,
+      [sampleId]
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Delete Sample
+  // ───────────────────────────────────────────────────────────
+
+  async delete(id: string): Promise<void> {
+
+    await db.runAsync(
+      `
+      DELETE FROM samples
+      WHERE id = ?
+      `,
+      [id]
     );
   }
 }

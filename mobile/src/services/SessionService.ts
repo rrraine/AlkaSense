@@ -1,103 +1,209 @@
-import { auth } from '../core/firebase';
-import { getUserById } from '../db/repositories/UserRepository';
-import type { User } from '../db/repositories/UserRepository';
+import db from '../../src/db/database';
+
 import {
   SessionRepository,
-  Session,
   CreateSessionPayload,
-} from '../db/repositories/SessionRepository';
+} from '../../src/db/repositories/SessionRepository';
 
-const sessionRepo = new SessionRepository();
+import { SampleRepository } from '../../src/db/repositories/SampleRepository';
 
-// ─── Error types ──────────────────────────────────────────────────────────────
+const sessionRepository =
+  new SessionRepository();
 
-export class SessionError extends Error {
-  constructor(
-    message: string,
-    public readonly field?: string
+const sampleRepository =
+  new SampleRepository();
+
+export class SessionService {
+
+  // ───────────────────────────────────────────────────────────
+  // Create Session
+  // ───────────────────────────────────────────────────────────
+
+  async createSession(
+    payload: CreateSessionPayload
   ) {
-    super(message);
-    this.name = 'SessionError';
-  }
-}
 
-// ─── Auth helper (private) ────────────────────────────────────────────────────
+    const existingActive =
+      await sessionRepository.getActiveSession(
+        payload.evaluator_id
+      );
 
-function requireAuthUid(): string {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new SessionError('No authenticated user found.', 'auth');
-  return uid;
-}
+    if (existingActive) {
+      throw new Error(
+        'Evaluator already has an active session'
+      );
+    }
 
-// ─── Service ──────────────────────────────────────────────────────────────────
+    const nameExists =
+      await sessionRepository.nameExists(
+        payload.name,
+        payload.evaluator_id
+      );
 
-export async function getCurrentEvaluator(): Promise<User | null> {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return null;
-  return getUserById(uid);
-}
+    if (nameExists) {
+      throw new Error(
+        'Session name already exists'
+      );
+    }
 
-export async function createSession(
-  payload: Omit<CreateSessionPayload, 'evaluator_id'>
-): Promise<Session> {
-  const evaluatorId = requireAuthUid();
+    const batchExists =
+      await sessionRepository.batchIdentifierExists(
+        payload.batch_identifier,
+        payload.evaluator_id
+      );
 
-  // FR-M1-10: block if this evaluator already has an Active session
-  const active = await sessionRepo.getActiveSession(evaluatorId);
-  if (active) {
-    throw new SessionError(
-      'An active session already exists. Complete or close it before creating a new one.',
-      'activeSession'
+    if (batchExists) {
+      throw new Error(
+        'Batch identifier already exists'
+      );
+    }
+
+    return await sessionRepository.create(
+      payload
     );
   }
 
-  // FR-M1-05: session name uniqueness per evaluator
-  const nameTaken = await sessionRepo.nameExists(payload.name, evaluatorId);
-  if (nameTaken) {
-    throw new SessionError(
-      'A session with this name already exists. Please use a different name.',
-      'sessionName'
+  // ───────────────────────────────────────────────────────────
+  // Complete Session
+  // ───────────────────────────────────────────────────────────
+
+  async completeSession(
+    sessionId: string
+  ): Promise<void> {
+
+    const totalSamples =
+      await sampleRepository.getCountBySession(
+        sessionId
+      );
+
+    if (totalSamples === 0) {
+      throw new Error(
+        'Cannot complete empty session'
+      );
+    }
+
+    await sessionRepository.complete(
+      sessionId
     );
   }
 
-  // FR-M1-05: batch identifier uniqueness per evaluator
-  const batchTaken = await sessionRepo.batchIdentifierExists(
-    payload.batch_identifier,
-    evaluatorId
-  );
-  if (batchTaken) {
-    throw new SessionError(
-      'This batch identifier is already in use. Please use a different one.',
-      'batchIdentifier'
+  // ───────────────────────────────────────────────────────────
+  // Delete Session
+  // ───────────────────────────────────────────────────────────
+
+  async deleteSession(
+    sessionId: string
+  ): Promise<void> {
+
+    await sessionRepository.delete(
+      sessionId
     );
   }
 
-  const repoPayload: CreateSessionPayload = { ...payload, evaluator_id: evaluatorId };
-  return sessionRepo.create(repoPayload);
-}
+  // ───────────────────────────────────────────────────────────
+  // Get Current Active Session
+  // ───────────────────────────────────────────────────────────
 
-export async function getAllSessions(): Promise<Session[]> {
-  const evaluatorId = requireAuthUid();
-  return sessionRepo.getAll(evaluatorId);
-}
+  async getCurrentActiveSession() {
 
-export async function getActiveSession(): Promise<Session | null> {
-  const evaluatorId = requireAuthUid();
-  return sessionRepo.getActiveSession(evaluatorId);
-}
-
-export async function getSessionById(id: string): Promise<Session> {
-  return sessionRepo.getById(id);
-}
-
-export async function completeSession(id: string): Promise<void> {
-  const session = await sessionRepo.getById(id);
-  if (session.status === 'Completed') {
-    throw new SessionError('This session is already completed.');
+    return await sessionRepository
+      .getCurrentActiveSession();
   }
-  await sessionRepo.complete(id);
-}
 
-export async function getSessionSampleCount(sessionId: string): Promise<number> {
-  return sessionRepo.getSampleCount(sessionId);
+  // ───────────────────────────────────────────────────────────
+  // Get Session Progress
+  // ───────────────────────────────────────────────────────────
+
+  async getSessionProgress(
+    sessionId: string
+  ) {
+
+    const total =
+      await sampleRepository
+        .getCountBySession(sessionId);
+
+    const confirmed =
+      (
+        await sampleRepository.getByStatus(
+          sessionId,
+          'Confirmed'
+        )
+      ).length;
+
+    const pending =
+      (
+        await sampleRepository.getByStatus(
+          sessionId,
+          'Pending'
+        )
+      ).length;
+
+    const imageSubmitted =
+      (
+        await sampleRepository.getByStatus(
+          sessionId,
+          'Image Submitted'
+        )
+      ).length;
+
+    return {
+      total,
+      confirmed,
+      pending,
+      imageSubmitted,
+
+      progress:
+        total === 0
+          ? 0
+          : Math.round(
+              (confirmed / total) * 100
+            ),
+    };
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Reset Session
+  // ───────────────────────────────────────────────────────────
+
+  async resetSession(
+    sessionId: string
+  ): Promise<void> {
+
+    await db.withTransactionAsync(
+      async () => {
+
+        await db.runAsync(
+          `
+          DELETE FROM evaluation_records
+          WHERE sample_id IN (
+            SELECT id
+            FROM samples
+            WHERE session_id = ?
+          )
+          `,
+          [sessionId]
+        );
+
+        await db.runAsync(
+          `
+          DELETE FROM grain_images
+          WHERE sample_id IN (
+            SELECT id
+            FROM samples
+            WHERE session_id = ?
+          )
+          `,
+          [sessionId]
+        );
+
+        await db.runAsync(
+          `
+          DELETE FROM samples
+          WHERE session_id = ?
+          `,
+          [sessionId]
+        );
+      }
+    );
+  }
 }

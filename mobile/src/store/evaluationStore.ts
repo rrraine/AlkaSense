@@ -1,88 +1,114 @@
 import { create } from 'zustand';
 
-interface SessionState {
+interface EvaluationState {
 
-  activeSession: any | null;
+  currentEvaluation: any | null;
 
-  selectedSession: any | null;
-
-  sessionProgress: {
-    total: number;
-    confirmed: number;
-    pending: number;
-    imageSubmitted: number;
-    progress: number;
+  aiDraft: {
+    predicted_asv_score: number | null;
+    predicted_gt_class: string | null;
+    raw_confidence: number | null;
+    calibrated_certainty: number | null;
+    overlay_file_path: string | null;
   } | null;
+
+  observations: {
+    spreading_pattern: string | null;
+    grain_translucency: string | null;
+    score_uniformity: string | null;
+    anomaly_flags: string[];
+    koh_appearance: string | null;
+  } | null;
+
+  confirmedScore: number | null;
 
   // ───────────────────────────────────────────────────────────
   // Actions
   // ───────────────────────────────────────────────────────────
 
-  setActiveSession: (
-    session: any | null
+  setCurrentEvaluation: (
+    evaluation: any | null
   ) => void;
 
-  setSelectedSession: (
-    session: any | null
+  setAiDraft: (
+    draft: any | null
   ) => void;
 
-  setSessionProgress: (
-    progress: any
+  setObservations: (
+    observations: any | null
   ) => void;
 
-  clearSession: () => void;
+  setConfirmedScore: (
+    score: number | null
+  ) => void;
+
+  clearEvaluation: () => void;
 }
 
-export const useSessionStore =
-  create<SessionState>((set) => ({
+export const useEvaluationStore =
+  create<EvaluationState>((set) => ({
 
-    activeSession: null,
+    currentEvaluation: null,
 
-    selectedSession: null,
+    aiDraft: null,
 
-    sessionProgress: null,
+    observations: null,
+
+    confirmedScore: null,
 
     // ─────────────────────────────────────────────────────────
-    // Set Active Session
+    // Set Current Evaluation
     // ─────────────────────────────────────────────────────────
 
-    setActiveSession: (
-      session
+    setCurrentEvaluation: (
+      evaluation
     ) =>
       set({
-        activeSession: session,
+        currentEvaluation: evaluation,
       }),
 
     // ─────────────────────────────────────────────────────────
-    // Set Selected Session
+    // Set AI Draft
     // ─────────────────────────────────────────────────────────
 
-    setSelectedSession: (
-      session
+    setAiDraft: (
+      draft
     ) =>
       set({
-        selectedSession: session,
+        aiDraft: draft,
       }),
 
     // ─────────────────────────────────────────────────────────
-    // Set Session Progress
+    // Set Observations
     // ─────────────────────────────────────────────────────────
 
-    setSessionProgress: (
-      progress
+    setObservations: (
+      observations
     ) =>
       set({
-        sessionProgress: progress,
+        observations,
       }),
 
     // ─────────────────────────────────────────────────────────
-    // Clear Session
+    // Set Confirmed Score
     // ─────────────────────────────────────────────────────────
 
-    clearSession: () =>
+    setConfirmedScore: (
+      score
+    ) =>
       set({
-        activeSession: null,
-        selectedSession: null,
-        sessionProgress: null,
+        confirmedScore: score,
+      }),
+
+    // ─────────────────────────────────────────────────────────
+    // Clear Evaluation
+    // ─────────────────────────────────────────────────────────
+
+    clearEvaluation: () =>
+      set({
+        currentEvaluation: null,
+        aiDraft: null,
+        observations: null,
+        confirmedScore: null,
       }),
   }));
