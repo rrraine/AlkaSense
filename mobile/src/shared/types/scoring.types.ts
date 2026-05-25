@@ -37,6 +37,8 @@ export type ClassificationResult = {
   gt_class: GTClass;
   gt_range: string;
   raw_confidence: number;
+  certainty_score: number;
+  low_certainty_flag: boolean;
 };
 
 export type ReferenceCase = {

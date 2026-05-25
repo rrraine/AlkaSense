@@ -2,6 +2,10 @@ import * as SQLite from 'expo-sqlite';
 
 const db = SQLite.openDatabaseSync('alkasense.db');
 
+export function getDatabase(): SQLite.SQLiteDatabase {
+  return db;
+}
+
 export async function initDatabase(): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;

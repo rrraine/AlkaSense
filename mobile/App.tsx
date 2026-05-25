@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { initDatabase } from './src/db/database';
+import { attachInterceptors } from './src/api/interceptors';
 
 import { SessionRepository } from './src/db/repositories/SessionRepository';
 import { SampleRepository } from './src/db/repositories/SampleRepository';
@@ -39,6 +40,7 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   useEffect(() => {
+    attachInterceptors();
     initDatabase().catch((e: any) => console.error('DB init failed:', e.message));
   }, []);
  

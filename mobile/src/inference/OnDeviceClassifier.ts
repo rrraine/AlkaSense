@@ -29,8 +29,9 @@ export async function classifyImage(imageUri: string): Promise<ClassificationRes
     throw new Error(`Unexpected model output length: ${logits.length}`);
   }
 
-  const { asv_score, gt_class, gt_range, raw_confidence } = certaintyComputor.compute(logits);
-  return { asv_score, gt_class, gt_range, raw_confidence };
+  const { asv_score, gt_class, gt_range, raw_confidence, certainty_score, low_certainty_flag } =
+    certaintyComputor.compute(logits);
+  return { asv_score, gt_class, gt_range, raw_confidence, certainty_score, low_certainty_flag };
 }
 
 async function decodeToFloat32(uri: string): Promise<Float32Array> {

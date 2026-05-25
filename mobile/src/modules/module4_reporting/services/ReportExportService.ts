@@ -1,0 +1,95 @@
+import {
+  documentDirectory,
+  makeDirectoryAsync,
+  writeAsStringAsync,
+} from 'expo-file-system/legacy';
+import { getDatabase } from '../../../db/database';
+import { ExportGenerationResult } from '../../../shared/types/report.types';
+
+export async function closeSession(sessionId: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE sessions SET status = 'CLOSED' WHERE id = ?`,
+    [sessionId]
+  );
+}
+
+export async function generateReport(sessionId: string): Promise<ExportGenerationResult> {
+  const db = await getDatabase();
+
+  const session = await db.getFirstAsync<{
+    id: string; name: string; batch_id: string;
+    koh_concentration: string; incubation_duration: number;
+    incubation_temperature: number; evaluation_date: string; evaluator_id: string;
+  }>(
+    'SELECT * FROM sessions WHERE id = ?',
+    [sessionId]
+  );
+  if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+  const rows = await db.getAllAsync<{
+    sample_identifier: string; rice_variety: string; grain_count: number;
+    final_asv_score: number; gt_class: string; gt_range: string;
+    ai_draft_used: number; deviated_from_draft: number;
+    deviation_remark: string | null; confirming_evaluator_id: string; confirmed_at: string;
+  }>(
+    `SELECT
+       s.sample_identifier, s.rice_variety, s.grain_count,
+       cs.final_asv_score, cs.gt_class, cs.gt_range,
+       cs.ai_draft_used, cs.deviated_from_draft,
+       cs.deviation_remark, cs.confirming_evaluator_id, cs.confirmed_at
+     FROM samples s
+     JOIN evaluation_records er ON er.sample_id = s.id
+     JOIN confirmed_scores cs ON cs.evaluation_id = er.id
+     WHERE s.session_id = ?
+     ORDER BY s.rowid ASC`,
+    [sessionId]
+  );
+
+  const generatedAt = new Date().toISOString();
+  const base = documentDirectory ?? '';
+  const dir = `${base}reports/${sessionId}/`;
+  await makeDirectoryAsync(dir, { intermediates: true });
+
+  const csvHeader =
+    'sample_identifier,rice_variety,grain_count,asv_score,gt_class,gt_range,ai_draft_used,deviated,remark,evaluator_id,confirmed_at\n';
+  const csvRows = rows
+    .map((r: typeof rows[number]) =>
+      [
+        r.sample_identifier,
+        r.rice_variety,
+        r.grain_count,
+        r.final_asv_score,
+        r.gt_class,
+        r.gt_range,
+        r.ai_draft_used ? 'true' : 'false',
+        r.deviated_from_draft ? 'true' : 'false',
+        `"${(r.deviation_remark ?? '').replace(/"/g, '""')}"`,
+        r.confirming_evaluator_id,
+        r.confirmed_at,
+      ].join(',')
+    )
+    .join('\n');
+
+  const csvPath = `${dir}report.csv`;
+  await writeAsStringAsync(csvPath, csvHeader + csvRows, { encoding: 'utf8' });
+
+  const pdfContent = `AlkaSense Batch Report\nSession: ${session.name}\nGenerated: ${generatedAt}\nSamples: ${rows.length}`;
+  const pdfPath = `${dir}report.pdf`;
+  await writeAsStringAsync(pdfPath, pdfContent, { encoding: 'utf8' });
+
+  const result: ExportGenerationResult = {
+    pdf_path: pdfPath,
+    csv_path: csvPath,
+    generated_at: generatedAt,
+  };
+
+  await db.runAsync(
+    `INSERT OR REPLACE INTO session_reports
+      (id, session_id, pdf_path, csv_path, generated_at, upload_status, upload_attempts)
+     VALUES (?, ?, ?, ?, ?, 'NOT_UPLOADED', 0)`,
+    [`report-${sessionId}`, sessionId, pdfPath, csvPath, generatedAt]
+  );
+
+  return result;
+}
