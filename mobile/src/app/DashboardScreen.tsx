@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { auth } from '../core/firebase';
 import { getAllSessions, getActiveSession } from '../services/SessionService';
 import type { Session } from '../db/repositories/SessionRepository';
 
@@ -44,15 +43,11 @@ export default function DashboardScreen({ navigation }: any) {
       let cancelled = false;
 
       async function load() {
-        // Only load sessions for the currently logged-in user
-        const evaluatorId = auth.currentUser?.uid;
-        if (!evaluatorId) return;
-
         setLoading(true);
         try {
           const [all, active] = await Promise.all([
-            getAllSessions(evaluatorId),
-            getActiveSession(evaluatorId),
+            getAllSessions(),
+            getActiveSession(),
           ]);
           if (!cancelled) {
             setSessions(all);

@@ -69,14 +69,17 @@ export class SessionRepository {
         ]
       );
 
-      await db.runAsync(
-        `INSERT INTO audit_log (id, user_id, action, entity)
-         VALUES (?, ?, 'CREATE', 'session')`,
-        [generateUUID(), payload.evaluator_id]
-      );
+      // await db.runAsync(
+      //   `INSERT INTO audit_log (id, user_id, action, entity)
+      //    VALUES (?, ?, 'CREATE', 'session')`,
+      //   [generateUUID(), payload.evaluator_id]
+      // );
     });
 
-    return this.getById(id);
+    // return this.getById(id);
+    const created = await this.getById(id);
+    console.log('[SessionRepository] session created:', JSON.stringify(created, null, 2));
+    return created;
   }
 
   async getById(id: string): Promise<Session> {

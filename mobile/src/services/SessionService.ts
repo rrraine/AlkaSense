@@ -1,4 +1,11 @@
-import { SessionRepository, Session, CreateSessionPayload } from '../db/repositories/SessionRepository';
+import { auth } from '../core/firebase';
+import { getUserById } from '../db/repositories/UserRepository';
+import type { User } from '../db/repositories/UserRepository';
+import {
+  SessionRepository,
+  Session,
+  CreateSessionPayload,
+} from '../db/repositories/SessionRepository';
 
 const sessionRepo = new SessionRepository();
 
@@ -14,23 +21,29 @@ export class SessionError extends Error {
   }
 }
 
+// ─── Auth helper (private) ────────────────────────────────────────────────────
+
+function requireAuthUid(): string {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new SessionError('No authenticated user found.', 'auth');
+  return uid;
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
-/**
- * Creates a new session after enforcing all business rules,
- * scoped to the calling evaluator.
- */
-export async function createSession(payload: {
-  evaluator_id: string;
-  name: string;
-  batch_identifier: string;
-  koh_concentration: number;
-  incubation_duration: number;
-  incubation_temp: number;
-  evaluation_date?: string;
-}): Promise<Session> {
+export async function getCurrentEvaluator(): Promise<User | null> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+  return getUserById(uid);
+}
+
+export async function createSession(
+  payload: Omit<CreateSessionPayload, 'evaluator_id'>
+): Promise<Session> {
+  const evaluatorId = requireAuthUid();
+
   // FR-M1-10: block if this evaluator already has an Active session
-  const active = await sessionRepo.getActiveSession(payload.evaluator_id);
+  const active = await sessionRepo.getActiveSession(evaluatorId);
   if (active) {
     throw new SessionError(
       'An active session already exists. Complete or close it before creating a new one.',
@@ -39,7 +52,7 @@ export async function createSession(payload: {
   }
 
   // FR-M1-05: session name uniqueness per evaluator
-  const nameTaken = await sessionRepo.nameExists(payload.name, payload.evaluator_id);
+  const nameTaken = await sessionRepo.nameExists(payload.name, evaluatorId);
   if (nameTaken) {
     throw new SessionError(
       'A session with this name already exists. Please use a different name.',
@@ -48,7 +61,10 @@ export async function createSession(payload: {
   }
 
   // FR-M1-05: batch identifier uniqueness per evaluator
-  const batchTaken = await sessionRepo.batchIdentifierExists(payload.batch_identifier, payload.evaluator_id);
+  const batchTaken = await sessionRepo.batchIdentifierExists(
+    payload.batch_identifier,
+    evaluatorId
+  );
   if (batchTaken) {
     throw new SessionError(
       'This batch identifier is already in use. Please use a different one.',
@@ -56,20 +72,17 @@ export async function createSession(payload: {
     );
   }
 
-  return sessionRepo.create(payload);
+  const repoPayload: CreateSessionPayload = { ...payload, evaluator_id: evaluatorId };
+  return sessionRepo.create(repoPayload);
 }
 
-/**
- * Returns all sessions for the given evaluator, most recent first.
- */
-export async function getAllSessions(evaluatorId: string): Promise<Session[]> {
+export async function getAllSessions(): Promise<Session[]> {
+  const evaluatorId = requireAuthUid();
   return sessionRepo.getAll(evaluatorId);
 }
 
-/**
- * Returns the Active session for the given evaluator, or null.
- */
-export async function getActiveSession(evaluatorId: string): Promise<Session | null> {
+export async function getActiveSession(): Promise<Session | null> {
+  const evaluatorId = requireAuthUid();
   return sessionRepo.getActiveSession(evaluatorId);
 }
 

@@ -14,10 +14,13 @@ import {
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { createSession, getActiveSession, SessionError } from '../services/SessionService';
-import { getUserById } from '../db/repositories/UserRepository';
+import {
+  createSession,
+  getActiveSession,
+  getCurrentEvaluator,
+  SessionError,
+} from '../services/SessionService';
 import type { User } from '../db/repositories/UserRepository';
-import { auth } from '../core/firebase';
 
 const GREEN = '#008236';
 
@@ -32,10 +35,7 @@ export default function CreateSessionScreen({ navigation }: any) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDateOverridden, setIsDateOverridden] = useState(false);
 
-  // Evaluator profile loaded from SQLite
   const [evaluator, setEvaluator] = useState<User | null>(null);
-
-  // FR-M1-10: checked on mount
   const [isRegisterBlocked, setIsRegisterBlocked] = useState(false);
 
   const [form, setForm] = useState({
@@ -48,19 +48,18 @@ export default function CreateSessionScreen({ navigation }: any) {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // ─── On mount: load evaluator + check for active session ─────────────────
+  // ─── On mount ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     async function init() {
       try {
-        const firebaseUser = auth.currentUser;
-        if (firebaseUser) {
-          const user = await getUserById(firebaseUser.uid);
-          setEvaluator(user);
-        }
+        const [user, activeSession] = await Promise.all([
+          getCurrentEvaluator(),
+          getActiveSession(),
+        ]);
 
-        const active = await getActiveSession(firebaseUser?.uid ?? '');
-        setIsRegisterBlocked(active !== null);
+        setEvaluator(user);
+        setIsRegisterBlocked(activeSession !== null);
       } catch (err) {
         console.error('CreateSessionScreen init error:', err);
       } finally {
@@ -90,7 +89,6 @@ export default function CreateSessionScreen({ navigation }: any) {
   async function handleStartSession() {
     const newErrors: Record<string, string> = {};
 
-    // Basic empty-field guards (belt-and-suspenders with the disabled button)
     if (!form.sessionName.trim())
       newErrors.sessionName = 'Session name is required.';
     if (!form.batchIdentifier.trim())
@@ -102,7 +100,6 @@ export default function CreateSessionScreen({ navigation }: any) {
     if (!form.incubationTemperature.trim())
       newErrors.incubationTemperature = 'Incubation temperature is required.';
 
-    // Numeric range guards
     const koh = parseFloat(form.kohConcentration);
     if (!isNaN(koh) && (koh <= 0 || koh > 100))
       newErrors.kohConcentration = 'KOH concentration must be between 0 and 100.';
@@ -121,13 +118,11 @@ export default function CreateSessionScreen({ navigation }: any) {
     setLoading(true);
     try {
       const session = await createSession({
-        evaluator_id: evaluator?.id ?? auth.currentUser?.uid ?? '',
         name: form.sessionName.trim(),
         batch_identifier: form.batchIdentifier.trim(),
         koh_concentration: koh,
         incubation_duration: duration,
         incubation_temp: temp,
-        // Only send evaluation_date when the user manually overrode it
         ...(isDateOverridden ? { evaluation_date: selectedDate.toISOString() } : {}),
       });
 
@@ -142,7 +137,6 @@ export default function CreateSessionScreen({ navigation }: any) {
         evaluationDate: session.evaluation_date,
       });
 
-      // Reset form
       setForm({
         sessionName: '',
         batchIdentifier: '',
@@ -158,7 +152,6 @@ export default function CreateSessionScreen({ navigation }: any) {
         if (err.field === 'activeSession') {
           setIsRegisterBlocked(true);
         } else if (err.field) {
-          // Surface uniqueness errors on the relevant field
           setErrors((prev) => ({ ...prev, [err.field!]: err.message }));
         } else {
           setErrors((prev) => ({ ...prev, sessionName: err.message }));
@@ -225,7 +218,6 @@ export default function CreateSessionScreen({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-
           {/* PROFILE CARD */}
           <View style={styles.profileCard}>
             <View style={styles.avatar}>
@@ -414,7 +406,7 @@ export default function CreateSessionScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* ─── FR-M1-02: Hamburg Menu Modal ─────────────────────────────────── */}
+      {/* ─── Hamburg Menu Modal ───────────────────────────────────────────── */}
       <Modal
         visible={menuVisible}
         transparent

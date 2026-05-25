@@ -4,6 +4,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { initDatabase } from './src/db/database';
+import { UserProvider } from './src/core/UserContext';
+
 
 import { SessionRepository } from './src/db/repositories/SessionRepository';
 import { SampleRepository } from './src/db/repositories/SampleRepository';
@@ -43,6 +45,7 @@ export default function App() {
   }, []);
  
   return (
+    <UserProvider>
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
@@ -70,6 +73,7 @@ export default function App() {
         <Stack.Screen name="AiScoreConfirm" component={AiScoreConfirmScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+    </UserProvider>
   );
   // const [logs, setLogs] = useState<string[]>([]);
 
