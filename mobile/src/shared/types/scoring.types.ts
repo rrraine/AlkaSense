@@ -31,3 +31,28 @@ export type ClassificationRequest = {
   image_path: string;
   evaluation_id: string;
 };
+
+export type ClassificationResult = {
+  asv_score: ASVScore;
+  gt_class: GTClass;
+  gt_range: string;
+  raw_confidence: number;
+};
+
+export type ReferenceCase = {
+  id: string;
+  evaluation_id: string;
+  asv_score: ASVScore;
+  gt_class: GTClass;
+  rice_variety: string;
+  image_path: string;
+  spreading_pattern: string;
+  grain_translucency: string;
+  within_dish_uniformity: string;
+  anomaly_flags: string[];
+  koh_solution_appearance: string;
+  ai_draft_used: boolean;
+  deviated_from_draft: boolean;
+  session_id: string;
+  confirmed_at: string;
+};
