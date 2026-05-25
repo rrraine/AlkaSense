@@ -118,15 +118,15 @@ export default function SignUpScreen({ navigation }: any) {
       const firebaseUser = userCredential.user;
       const idToken = await firebaseUser.getIdToken();
 
-      const backendUser = await registerUser(idToken, {
+      // Non-fatal — backend may be unreachable; Firebase account creation already succeeded
+      registerUser(idToken, {
         firebase_uid: firebaseUser.uid,
         email: firebaseUser.email,
         full_name: fullName,
         role,
         institution,
-      });
+      }).catch((e: any) => console.warn("Backend registration skipped:", e?.message));
 
-      console.log("BACKEND RESPONSE:", backendUser);
       navigation.navigate("Login");
     } catch (error: any) {
       console.log("SIGNUP ERROR:", JSON.stringify(error, null, 2));

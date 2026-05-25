@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { signOut } from "firebase/auth";
+import { auth } from "../core/firebase";
 import {
   View,
   Text,
@@ -51,7 +53,7 @@ export default function DashboardScreen({ navigation }: any) {
 
         <TouchableOpacity
           style={styles.logoutBtn}
-          onPress={() => navigation.navigate("Login")}
+          onPress={() => signOut(auth).catch(() => {})}
         >
           <Text style={styles.logoutText}>⇥ Logout</Text>
         </TouchableOpacity>

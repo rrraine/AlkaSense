@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth"; 
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../core/firebase";
+import { apiClient } from "../api/client";
 
 import {
   View,
@@ -70,14 +71,8 @@ export default function LoginScreen({ navigation }: any) {
         password
       );
 
-      const firebaseUser = userCredential.user;
-      const idToken = await firebaseUser.getIdToken();
-
-      await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
+      // Soft backend sync — non-fatal if server is unreachable offline
+      apiClient.get('/auth/me').catch(() => {});
 
       navigation.navigate("Dashboard");
     } catch (error: any) {
