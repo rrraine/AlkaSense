@@ -23,6 +23,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
   const {
     imageUri,
     sampleId,
+    sample_identifier,
     variety,
     grainCount,
     session,
@@ -32,6 +33,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
     navigation.navigate('ValidationResult', {
       imageUri,
       sampleId,
+      sample_identifier,
       variety,
       grainCount,
       session,
@@ -57,13 +59,13 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
           </View>
 
           <Text style={styles.headerSubtitle}>
-            Sample {sampleId}
+            Sample {sample_identifier}
           </Text>
 
           {/* ✅ TRANSPARENT WHITE INFO CONTAINER */}
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
-              {sampleId} • {variety} • {grainCount} grains
+              {sample_identifier} • {variety} • {grainCount} grains
             </Text>
 
             <Text style={styles.headerSession}>

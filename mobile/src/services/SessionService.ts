@@ -1,209 +1,142 @@
-import db from '../../src/db/database';
-
+import { auth } from '../core/firebase';
+import { getUserById } from '../db/repositories/UserRepository';
 import {
   SessionRepository,
   CreateSessionPayload,
-} from '../../src/db/repositories/SessionRepository';
+  Session,
+} from '../db/repositories/SessionRepository';
+import { SampleRepository } from '../db/repositories/SampleRepository';
 
-import { SampleRepository } from '../../src/db/repositories/SampleRepository';
+// ─────────────────────────────────────────────────────────────
+// Custom error for structured field-level errors
+// ─────────────────────────────────────────────────────────────
 
-const sessionRepository =
-  new SessionRepository();
+export class SessionError extends Error {
+  field?: string;
+  constructor(message: string, field?: string) {
+    super(message);
+    this.name = 'SessionError';
+    this.field = field;
+  }
+}
 
-const sampleRepository =
-  new SampleRepository();
+// ─────────────────────────────────────────────────────────────
+// Repositories
+// ─────────────────────────────────────────────────────────────
 
+const sessionRepository = new SessionRepository();
+const sampleRepository = new SampleRepository();
+
+// ─────────────────────────────────────────────────────────────
+// Service
+// ─────────────────────────────────────────────────────────────
+
+export async function getCurrentEvaluator() {
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) throw new Error('Not authenticated');
+  return await getUserById(firebaseUser.uid);
+}
+
+export async function createSession(
+  payload: Omit<CreateSessionPayload, 'evaluator_id'>
+): Promise<Session> {
+  const user = auth.currentUser;
+  if (!user) throw new SessionError('Not authenticated', 'activeSession');
+
+  const existingActive = await sessionRepository.getActiveSession(user.uid);
+  if (existingActive) {
+    throw new SessionError('Evaluator already has an active session', 'activeSession');
+  }
+
+  const nameExists = await sessionRepository.nameExists(payload.name, user.uid);
+  if (nameExists) {
+    throw new SessionError('Session name already exists', 'sessionName');
+  }
+
+  const batchExists = await sessionRepository.batchIdentifierExists(
+    payload.batch_identifier,
+    user.uid
+  );
+  if (batchExists) {
+    throw new SessionError('Batch identifier already exists', 'batchIdentifier');
+  }
+
+  // Validate numeric fields > 0
+  if (payload.koh_concentration <= 0) {
+    throw new SessionError('KOH concentration must be positive', 'kohConcentration');
+  }
+  if (payload.incubation_duration <= 0) {
+    throw new SessionError('Incubation duration must be positive', 'incubationDuration');
+  }
+  if (payload.incubation_temp <= 0) {
+    throw new SessionError('Incubation temperature must be positive', 'incubationTemperature');
+  }
+
+  return await sessionRepository.create({ ...payload, evaluator_id: user.uid });
+}
+
+export async function getActiveSession(): Promise<Session | null> {
+  const user = auth.currentUser;
+  if (!user) return null;
+  return await sessionRepository.getActiveSession(user.uid);
+}
+
+export async function getAllSessions(): Promise<Session[]> {
+  const user = auth.currentUser;
+  if (!user) return [];
+  return await sessionRepository.getAll(user.uid);
+}
+
+export async function getSessionById(sessionId: string): Promise<Session> {
+  return await sessionRepository.getById(sessionId);
+}
+
+export async function completeSession(sessionId: string): Promise<void> {
+  const total = await sampleRepository.getCountBySession(sessionId);
+  if (total === 0) throw new SessionError('Cannot complete empty session');
+
+  const confirmed = (await sampleRepository.getByStatus(sessionId, 'Confirmed')).length;
+  if (confirmed < total) {
+    throw new SessionError('All samples must be Confirmed before completing the session');
+  }
+
+  await sessionRepository.complete(sessionId);
+}
+
+export async function getSessionProgress(sessionId: string) {
+  const total = await sampleRepository.getCountBySession(sessionId);
+  const confirmed = (await sampleRepository.getByStatus(sessionId, 'Confirmed')).length;
+  const pending = (await sampleRepository.getByStatus(sessionId, 'Pending')).length;
+  const imageSubmitted = (await sampleRepository.getByStatus(sessionId, 'Image Submitted')).length;
+
+  return {
+    total,
+    confirmed,
+    pending,
+    imageSubmitted,
+    progress: total === 0 ? 0 : Math.round((confirmed / total) * 100),
+  };
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  await sessionRepository.delete(sessionId);
+}
+
+// Legacy alias kept for backward compat
 export class SessionService {
-
-  // ───────────────────────────────────────────────────────────
-  // Create Session
-  // ───────────────────────────────────────────────────────────
-
-  async createSession(
-    payload: CreateSessionPayload
-  ) {
-
-    const existingActive =
-      await sessionRepository.getActiveSession(
-        payload.evaluator_id
-      );
-
-    if (existingActive) {
-      throw new Error(
-        'Evaluator already has an active session'
-      );
-    }
-
-    const nameExists =
-      await sessionRepository.nameExists(
-        payload.name,
-        payload.evaluator_id
-      );
-
-    if (nameExists) {
-      throw new Error(
-        'Session name already exists'
-      );
-    }
-
-    const batchExists =
-      await sessionRepository.batchIdentifierExists(
-        payload.batch_identifier,
-        payload.evaluator_id
-      );
-
-    if (batchExists) {
-      throw new Error(
-        'Batch identifier already exists'
-      );
-    }
-
-    return await sessionRepository.create(
-      payload
-    );
+  async createSession(payload: CreateSessionPayload) {
+    return createSession(payload);
   }
-
-  // ───────────────────────────────────────────────────────────
-  // Complete Session
-  // ───────────────────────────────────────────────────────────
-
-  async completeSession(
-    sessionId: string
-  ): Promise<void> {
-
-    const totalSamples =
-      await sampleRepository.getCountBySession(
-        sessionId
-      );
-
-    if (totalSamples === 0) {
-      throw new Error(
-        'Cannot complete empty session'
-      );
-    }
-
-    await sessionRepository.complete(
-      sessionId
-    );
+  async completeSession(sessionId: string) {
+    return completeSession(sessionId);
   }
-
-  // ───────────────────────────────────────────────────────────
-  // Delete Session
-  // ───────────────────────────────────────────────────────────
-
-  async deleteSession(
-    sessionId: string
-  ): Promise<void> {
-
-    await sessionRepository.delete(
-      sessionId
-    );
+  async deleteSession(sessionId: string) {
+    return deleteSession(sessionId);
   }
-
-  // ───────────────────────────────────────────────────────────
-  // Get Current Active Session
-  // ───────────────────────────────────────────────────────────
-
   async getCurrentActiveSession() {
-
-    return await sessionRepository
-      .getCurrentActiveSession();
+    return getActiveSession();
   }
-
-  // ───────────────────────────────────────────────────────────
-  // Get Session Progress
-  // ───────────────────────────────────────────────────────────
-
-  async getSessionProgress(
-    sessionId: string
-  ) {
-
-    const total =
-      await sampleRepository
-        .getCountBySession(sessionId);
-
-    const confirmed =
-      (
-        await sampleRepository.getByStatus(
-          sessionId,
-          'Confirmed'
-        )
-      ).length;
-
-    const pending =
-      (
-        await sampleRepository.getByStatus(
-          sessionId,
-          'Pending'
-        )
-      ).length;
-
-    const imageSubmitted =
-      (
-        await sampleRepository.getByStatus(
-          sessionId,
-          'Image Submitted'
-        )
-      ).length;
-
-    return {
-      total,
-      confirmed,
-      pending,
-      imageSubmitted,
-
-      progress:
-        total === 0
-          ? 0
-          : Math.round(
-              (confirmed / total) * 100
-            ),
-    };
-  }
-
-  // ───────────────────────────────────────────────────────────
-  // Reset Session
-  // ───────────────────────────────────────────────────────────
-
-  async resetSession(
-    sessionId: string
-  ): Promise<void> {
-
-    await db.withTransactionAsync(
-      async () => {
-
-        await db.runAsync(
-          `
-          DELETE FROM evaluation_records
-          WHERE sample_id IN (
-            SELECT id
-            FROM samples
-            WHERE session_id = ?
-          )
-          `,
-          [sessionId]
-        );
-
-        await db.runAsync(
-          `
-          DELETE FROM grain_images
-          WHERE sample_id IN (
-            SELECT id
-            FROM samples
-            WHERE session_id = ?
-          )
-          `,
-          [sessionId]
-        );
-
-        await db.runAsync(
-          `
-          DELETE FROM samples
-          WHERE session_id = ?
-          `,
-          [sessionId]
-        );
-      }
-    );
+  async getSessionProgress(sessionId: string) {
+    return getSessionProgress(sessionId);
   }
 }

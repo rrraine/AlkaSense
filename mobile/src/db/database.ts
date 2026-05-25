@@ -17,7 +17,7 @@ class DatabaseManager {
 
 export const db = DatabaseManager.getConnection();
 
-export async function initializeDatabase(): Promise<void> {
+export async function initDatabase(): Promise<void> {
 
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
