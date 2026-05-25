@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,16 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 
 const GREEN = '#008236';
+
+import { SampleService } from '../services/SampleService';
+import { confirmEvaluation } from '../services/AiService';
+import type { GTClass } from '../db/repositories/SampleRepository';
+
+const sampleService = new SampleService();
 
 function getGTClassification(score: number): string {
   if (score <= 2) return 'High GT (>74°C)';
@@ -121,6 +128,8 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
     // Score source — exactly one of these two should be present:
     manualScore,   // present when coming from ManualScoreScreen
     aiDraftScore,  // present when coming from AIDraftScreen / ConfirmScore AI path
+    finalScore: finalScoreFromRoute,
+    evaluationId,
     // Contextual AI-path fields (optional):
     confirmedBy = 'Dr. Maria Santos',
     scoreDeviation,        // string | undefined — e.g. "Final score differs from AI draft"
@@ -128,7 +137,43 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
   } = route.params;
 
   const isManual = manualScore !== undefined;
-  const finalScore: number = isManual ? manualScore : aiDraftScore;
+  const finalScore: number = isManual ? manualScore : finalScoreFromRoute ?? aiDraftScore;
+  const [saving, setSaving] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function persistConfirmedScore() {
+      if (!sampleId) {
+        setSaveError('Missing sample ID');
+        setSaving(false);
+        return;
+      }
+
+      try {
+        if (isManual) {
+          const gtClass = getGTClassification(finalScore) as GTClass;
+          await sampleService.confirmSampleScore({
+            sampleId,
+            asvScore: finalScore,
+            gtClass,
+          });
+        } else if (evaluationId) {
+          await confirmEvaluation({
+            evaluationId,
+            sampleId,
+            final_asv_score: finalScore,
+            correction_remark: conflictResolution ?? scoreDeviation,
+          });
+        }
+      } catch (err: any) {
+        setSaveError(err.message || 'Failed to save confirmed score');
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    persistConfirmedScore();
+  }, []);
   const gtClassification = getGTClassification(finalScore);
   const timestamp = formatTimestamp(new Date());
 
@@ -162,8 +207,19 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* Success banner */}
-        <SuccessBanner />
+        {saving ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={GREEN} size="large" />
+            <Text style={styles.loadingText}>Saving confirmed score…</Text>
+          </View>
+        ) : saveError ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorTitle}>Could not save score</Text>
+            <Text style={styles.errorMessage}>{saveError}</Text>
+          </View>
+        ) : (
+          <SuccessBanner />
+        )}
 
         {/* Summary card */}
         <View style={styles.summaryCard}>
@@ -335,6 +391,38 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+  },
+  loadingContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 14,
+    color: '#4B5563',
+    fontSize: 14,
+  },
+  errorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorTitle: {
+    color: '#B91C1C',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  errorMessage: {
+    color: '#991B1B',
+    fontSize: 14,
+    lineHeight: 20,
   },
 
   summaryCardTitle: {

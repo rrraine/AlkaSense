@@ -103,38 +103,47 @@ export default function SignUpScreen({ navigation }: any) {
 
   // ─── Handler ───────────────────────────────────────────────────────────────
 
-  async function handleSignUp() {
-    const newErrors = validate();
-    setErrors(newErrors);
+async function handleSignUp() {
+  const newErrors = validate();
+  setErrors(newErrors);
+  setFirebaseError("");
+
+  if (Object.keys(newErrors).length > 0) return;
+
+  setLoading(true);
+
+  try {
+    await signUpUser({ fullName, email, role, institution, password });
+
+    // stop loading FIRST
+    setLoading(false);
+
+    // optional success feedback 
+    alert("Account created successfully!");
+
+    // reset form fields
+    setFullName("");
+    setEmail("");
+    setRole("");
+    setInstitution("");
+    setPassword("");
+    setConfirmPassword("");
+    setErrors({});
     setFirebaseError("");
-    if (Object.keys(newErrors).length > 0) return;
 
-    setLoading(true);
-    try {
-      await signUpUser({ fullName, email, role, institution, password });
+    // IMPORTANT: navigate to login
+    navigation.replace("Login");
 
-      // Reset fields
-      setFullName("");
-      setEmail("");
-      setRole("");
-      setInstitution("");
-      setPassword("");
-      setConfirmPassword("");
-      setErrors({});
-      setFirebaseError("");
+  } catch (error: any) {
+    setLoading(false);
 
-      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-
-    } catch (error: any) {
-      if (error.code === "auth/email-already-in-use") {
-        setFirebaseError("An account with this email already exists.");
-      } else {
-        setFirebaseError("Account creation failed. Please try again.");
-      }
-    } finally {
-      setLoading(false);
+    if (error?.code === "auth/email-already-in-use") {
+      setFirebaseError("An account with this email already exists.");
+    } else {
+      setFirebaseError("Account creation failed. Please try again.");
     }
   }
+}
 
   // ─── UI ────────────────────────────────────────────────────────────────────
 
