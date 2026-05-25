@@ -74,7 +74,10 @@ function PipelineIcon({ pipelineStatus }: { pipelineStatus: PipelineStatus }) {
 }
 
 export default function ValidationResultScreen({ navigation, route }: any) {
-  const { imageUri, sampleId, sample_identifier, variety, grainCount, session, sessionId } = route.params;
+  const { imageUri, sampleId, sample_identifier, variety, grainCount, session, sessionId: routeSessionId } = route.params;
+  
+  // Use sessionId from params, fallback to session.id if available
+  const sessionId = routeSessionId ?? session?.id;
 
   // Use backend result if provided, else use fallback config (dev mode)
   const validationStatus: ValidationStatus = route.params.validationStatus ?? 'accepted';

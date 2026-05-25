@@ -37,6 +37,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
       variety,
       grainCount,
       session,
+      sessionId: session?.id,
     });
   }
 
