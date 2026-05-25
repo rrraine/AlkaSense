@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,28 +14,24 @@ import {
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useAuthContext } from '../../../core/AuthContext';
+import {
+  getActiveSessions,
+  checkNameUnique,
+  submitSessionCreation,
+} from '../services/SessionService';
 
 const GREEN = '#008236';
 
-// ─── Mock data for duplicate-name checking and active session check ───────────
-// Replace these with your actual API/store calls.
-
-const EXISTING_SESSION_NAMES = [
-  'Spring Harvest 2026',
-  'Summer Trial Batch A',
-];
-
-const HAS_ACTIVE_SESSION = true; // FR-M1-10: set from your store/API
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function CreateSessionScreen({ navigation }: any) {
+  const { user } = useAuthContext();
   const [loading, setLoading] = useState(false);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
 
   // Hamburg menu
   const [menuVisible, setMenuVisible] = useState(false);
 
-  // Date override (UI-only for now — actual override deferred)
+  // Date override
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDateOverridden, setIsDateOverridden] = useState(false);
@@ -50,13 +46,17 @@ export default function CreateSessionScreen({ navigation }: any) {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // FR-M1-10: Check for active session on mount
+  useEffect(() => {
+    getActiveSessions()
+      .then((sessions) => setHasActiveSession(sessions.length > 0))
+      .catch(() => {});
+  }, []);
+
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
-    // Clear field error on change
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   }
-
-  // ─── FR-M1-08: All required fields must be filled ─────────────────────────
 
   const allFieldsFilled =
     form.sessionName.trim() !== '' &&
@@ -65,54 +65,43 @@ export default function CreateSessionScreen({ navigation }: any) {
     form.incubationDuration.trim() !== '' &&
     form.incubationTemperature.trim() !== '';
 
-  // ─── FR-M1-10: Block if active session exists ─────────────────────────────
-
-  const isRegisterBlocked = HAS_ACTIVE_SESSION;
-
-  // ─── Validate and submit ──────────────────────────────────────────────────
-
-  function handleStartSession() {
+  async function handleStartSession() {
     const newErrors: Record<string, string> = {};
 
-    // FR-M1-08: empty field guard (belt-and-suspenders with disabled button)
     if (!form.sessionName.trim()) newErrors.sessionName = 'Session name is required.';
     if (!form.batchIdentifier.trim()) newErrors.batchIdentifier = 'Batch identifier is required.';
     if (!form.kohConcentration.trim()) newErrors.kohConcentration = 'KOH concentration is required.';
     if (!form.incubationDuration.trim()) newErrors.incubationDuration = 'Incubation duration is required.';
     if (!form.incubationTemperature.trim()) newErrors.incubationTemperature = 'Incubation temperature is required.';
 
-    // FR-M1-05: Duplicate session name check
-    const nameTrimmed = form.sessionName.trim();
-    if (
-      nameTrimmed &&
-      EXISTING_SESSION_NAMES.some(
-        (n) => n.toLowerCase() === nameTrimmed.toLowerCase()
-      )
-    ) {
-      newErrors.sessionName =
-        'A session with this name already exists. Please use a different name.';
-    }
-
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     setLoading(true);
+    try {
+      // FR-M1-05: Duplicate session name check
+      const nameUnique = await checkNameUnique(form.sessionName.trim());
+      if (!nameUnique) {
+        setErrors({
+          sessionName:
+            'A session with this name already exists. Please use a different name.',
+        });
+        return;
+      }
 
-    // TODO: call your API here
-    setTimeout(() => {
-      setLoading(false);
-
-      // FR-M1-09: Auto-navigate to Sample Registration after session is created
-      navigation?.navigate('RegisterSample', {
-        sessionName: form.sessionName.trim(),
-        batchIdentifier: form.batchIdentifier.trim(),
-        kohConcentration: form.kohConcentration.trim(),
-        incubationDuration: form.incubationDuration.trim(),
-        incubationTemperature: form.incubationTemperature.trim(),
-        evaluationDate: selectedDate.toISOString(),
+      const session = await submitSessionCreation({
+        name: form.sessionName.trim(),
+        batch_id: form.batchIdentifier.trim(),
+        koh_concentration: parseFloat(form.kohConcentration),
+        incubation_duration: parseFloat(form.incubationDuration),
+        incubation_temperature: parseFloat(form.incubationTemperature),
+        evaluation_date: selectedDate.toISOString(),
+        evaluator_id: user?.uid ?? 'unknown',
       });
 
-      // Reset
+      // FR-M1-09: Auto-navigate to Sample Registration after session is created
+      navigation?.navigate('RegisterSample', { sessionId: session.id });
+
       setForm({
         sessionName: '',
         batchIdentifier: '',
@@ -122,7 +111,11 @@ export default function CreateSessionScreen({ navigation }: any) {
       });
       setSelectedDate(new Date());
       setIsDateOverridden(false);
-    }, 800);
+    } catch {
+      setErrors({ sessionName: 'Failed to create session. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -150,7 +143,7 @@ export default function CreateSessionScreen({ navigation }: any) {
         </View>
 
         {/* FR-M1-10: Active session warning banner */}
-        {isRegisterBlocked && (
+        {hasActiveSession && (
           <View style={styles.activeBanner}>
             <Text style={styles.activeBannerText}>
               ⚠ An active session already exists. Close it before creating a new one.
@@ -169,13 +162,15 @@ export default function CreateSessionScreen({ navigation }: any) {
           <View style={styles.profileCard}>
             <View style={styles.avatar}>
               <Image
-                source={require('../../assets/personIcon.png')}
+                source={require('../../../../assets/personIcon.png')}
                 style={styles.avatarImage}
               />
             </View>
             <View>
-              <Text style={styles.profileName}>Evaluator Name</Text>
-              <Text style={styles.profileRole}>Role • PhilRice</Text>
+              <Text style={styles.profileName}>
+                {user?.displayName ?? user?.email ?? 'Evaluator'}
+              </Text>
+              <Text style={styles.profileRole}>Evaluator • PhilRice</Text>
             </View>
           </View>
 
@@ -313,10 +308,10 @@ export default function CreateSessionScreen({ navigation }: any) {
           <TouchableOpacity
             style={[
               styles.startButton,
-              (!allFieldsFilled || isRegisterBlocked) && styles.startButtonDisabled,
+              (!allFieldsFilled || hasActiveSession) && styles.startButtonDisabled,
             ]}
             onPress={handleStartSession}
-            disabled={!allFieldsFilled || isRegisterBlocked || loading}
+            disabled={!allFieldsFilled || hasActiveSession || loading}
             activeOpacity={0.85}
           >
             {loading ? (
@@ -326,12 +321,12 @@ export default function CreateSessionScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
 
-          {isRegisterBlocked && (
+          {hasActiveSession && (
             <Text style={styles.disabledHint}>
               Close the current active session to create a new one.
             </Text>
           )}
-          {!isRegisterBlocked && !allFieldsFilled && (
+          {!hasActiveSession && !allFieldsFilled && (
             <Text style={styles.disabledHint}>
               Fill in all required fields to continue.
             </Text>
@@ -359,7 +354,6 @@ export default function CreateSessionScreen({ navigation }: any) {
               style={styles.menuItem}
               onPress={() => {
                 setMenuVisible(false);
-                // Show date picker for manual override (actual backdating deferred)
                 setShowDatePicker(true);
               }}
             >
@@ -486,7 +480,7 @@ const styles = StyleSheet.create({
   startButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   disabledHint: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 6 },
 
-  // ── Modal styles ──
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

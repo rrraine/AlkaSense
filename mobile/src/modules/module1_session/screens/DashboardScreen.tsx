@@ -1,6 +1,9 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { signOut } from "firebase/auth";
-import { auth } from "../core/firebase";
+import { auth } from "../../../core/firebase";
+import { useFocusEffect } from "@react-navigation/native";
+import { getAllSessions } from "../services/SessionService";
+import { SessionRecord } from "../../../shared/types/session.types";
 import {
   View,
   Text,
@@ -14,25 +17,23 @@ import {
 const GREEN = "#008236";
 const GREEN_DARK = "#006228";
 
-// ─── Mock data — replace with your store/API ─────────────────────────────────
-
-const MOCK_SESSION = {
-  id: "1",
-  name: "Spring Harvest 2026",
-  batchId: "ALKA-2026-041",
-  status: "Active",
-  date: "May 15, 2026",
-  samples: 24,
-};
-
-// FR-M1-10: Derive whether an active session exists from your sessions list.
-// Replace this with a real selector from your store (e.g. useSelector, useContext, etc.)
-const hasActiveSession = MOCK_SESSION.status === "Active";
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function DashboardScreen({ navigation }: any) {
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [search, setSearch] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      getAllSessions().then(setSessions).catch(() => {});
+    }, [])
+  );
+
+  const hasActiveSession = sessions.some((s) => s.status === "ACTIVE");
+
+  const filtered = sessions.filter(
+    (s) =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.batch_id.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <View style={styles.root}>
@@ -40,7 +41,7 @@ export default function DashboardScreen({ navigation }: any) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image
-            source={require("../../assets/logo2.png")}
+            source={require("../../../../assets/logo2.png")}
             style={styles.logo}
           />
           <View>
@@ -74,7 +75,7 @@ export default function DashboardScreen({ navigation }: any) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* FR-M1-10: Active session warning — contextual hint above sessions list */}
+        {/* FR-M1-10: Active session warning */}
         {hasActiveSession && (
           <View style={styles.activeSessionBanner}>
             <Text style={styles.activeSessionBannerText}>
@@ -91,36 +92,64 @@ export default function DashboardScreen({ navigation }: any) {
           <Text style={styles.libraryText}>📖 ASV Reference Library</Text>
         </TouchableOpacity>
 
-        {/* SESSION CARD */}
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() =>
-            navigation.navigate("SessionProgress", {
-              sessionId: MOCK_SESSION.id,
-            })
-          }
-        >
-          <View style={styles.cardTop}>
-            <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>{MOCK_SESSION.name}</Text>
-              <Text style={styles.cardBatch}>{MOCK_SESSION.batchId}</Text>
-            </View>
-
-            <View style={styles.activeBadge}>
-              <Text style={styles.activeBadgeText}>{MOCK_SESSION.status}</Text>
-            </View>
-          </View>
-
-          <View style={styles.cardDivider} />
-
-          <View style={styles.cardBottom}>
-            <Text style={styles.cardMeta}>📅 {MOCK_SESSION.date}</Text>
-            <Text style={styles.cardMeta}>
-              📊 {MOCK_SESSION.samples} samples
+        {/* EMPTY STATE */}
+        {filtered.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              No sessions yet. Tap below to create one.
             </Text>
-            <Text style={styles.cardChevron}>›</Text>
           </View>
-        </TouchableOpacity>
+        )}
+
+        {/* SESSION CARDS */}
+        {filtered.map((session) => (
+          <TouchableOpacity
+            key={session.id}
+            style={styles.card}
+            onPress={() =>
+              navigation.navigate("SessionProgress", { sessionId: session.id })
+            }
+          >
+            <View style={styles.cardTop}>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>{session.name}</Text>
+                <Text style={styles.cardBatch}>{session.batch_id}</Text>
+              </View>
+
+              <View
+                style={
+                  session.status === "ACTIVE"
+                    ? styles.activeBadge
+                    : styles.closedBadge
+                }
+              >
+                <Text
+                  style={
+                    session.status === "ACTIVE"
+                      ? styles.activeBadgeText
+                      : styles.closedBadgeText
+                  }
+                >
+                  {session.status === "ACTIVE" ? "Active" : "Closed"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.cardDivider} />
+
+            <View style={styles.cardBottom}>
+              <Text style={styles.cardMeta}>
+                📅{" "}
+                {new Date(session.evaluation_date).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+              <Text style={styles.cardChevron}>›</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
       {/* CREATE NEW SESSION BUTTON — FR-M1-10: disabled when active session exists */}
@@ -202,6 +231,13 @@ const styles = StyleSheet.create({
   },
   activeSessionBannerText: { fontSize: 13, color: "#92400E", fontWeight: "500" },
 
+  // EMPTY STATE
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  emptyText: { fontSize: 14, color: "#9CA3AF", textAlign: "center" },
+
   // ASV LIBRARY BUTTON
   libraryBtn: {
     backgroundColor: "#EFF6FF",
@@ -246,6 +282,15 @@ const styles = StyleSheet.create({
     borderColor: "#86EFAC",
   },
   activeBadgeText: { fontSize: 12, fontWeight: "600", color: "#15803D" },
+  closedBadge: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+  },
+  closedBadgeText: { fontSize: 12, fontWeight: "600", color: "#6B7280" },
   cardDivider: { height: 1, backgroundColor: "#F3F4F6", marginBottom: 12 },
   cardBottom: { flexDirection: "row", alignItems: "center", gap: 12 },
   cardMeta: { fontSize: 13, color: "#6B7280", flex: 1 },

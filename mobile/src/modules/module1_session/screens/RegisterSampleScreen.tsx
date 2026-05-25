@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,19 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+
+import { useFocusEffect } from '@react-navigation/native';
+import { getSessionById } from '../services/SessionService';
+import {
+  getSamplesBySession,
+  submitSampleRegistration,
+  buildSamplePayload,
+  checkSampleIdentifierUnique,
+} from '../services/SampleService';
+import { SessionRecord } from '../../../shared/types/session.types';
+import { SampleRecord } from '../../../shared/types/sample.types';
 
 const GREEN = '#008236';
 
@@ -21,119 +33,111 @@ const RICE_VARIETIES = [
   'IR72',
 ];
 
-type RegisteredSample = {
-  id: string;
-  variety: string;
-  grainCount: string;
-  registeredAt: string;
-};
-
-const MOCK_REGISTERED: RegisteredSample[] = [
-  {
-    id: 'S001',
-    variety: 'NSIC Rc 222',
-    grainCount: '10',
-    registeredAt: '14:30',
-  },
-  {
-    id: 'S002',
-    variety: 'PSB Rc 18',
-    grainCount: '10',
-    registeredAt: '14:25',
-  },
-];
-
 export default function RegisterSampleScreen({
   navigation,
   route,
 }: any) {
-  const sessionId = route?.params?.sessionId ?? 'ALKA-2026-041';
-  const batchId = route?.params?.batchId ?? 'PR-2026-041';
-  const kohConc = route?.params?.kohConc ?? '1.7';
-  const duration = route?.params?.duration ?? '23';
-  const temperature = route?.params?.temperature ?? '30';
+  const sessionId: string = route?.params?.sessionId ?? '';
 
-  const [sampleId, setSampleId] = useState('');
+  const [session, setSession] = useState<SessionRecord | null>(null);
+  const [registeredSamples, setRegisteredSamples] = useState<SampleRecord[]>([]);
+  const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [sampleIdentifier, setSampleIdentifier] = useState('');
   const [variety, setVariety] = useState('');
   const [grainCount, setGrainCount] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [registeredSamples, setRegisteredSamples] =
-    useState<RegisteredSample[]>(MOCK_REGISTERED);
-  const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
+
+  function loadData() {
+    if (!sessionId) return;
+    Promise.all([
+      getSessionById(sessionId),
+      getSamplesBySession(sessionId),
+    ])
+      .then(([s, smps]) => {
+        setSession(s);
+        setRegisteredSamples(smps);
+      })
+      .catch(() => {});
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [sessionId])
+  );
 
   const nextSampleId = useMemo(() => {
     const next = registeredSamples.length + 1;
     return `S${String(next).padStart(3, '0')}`;
   }, [registeredSamples]);
 
-  // ─── FR-M1-08: All required fields must be filled to enable Register button ─
-
+  // FR-M1-08: All required fields must be filled to enable Register button
   const allFieldsFilled =
-    sampleId.trim() !== '' &&
+    sampleIdentifier.trim() !== '' &&
     variety.trim() !== '' &&
     grainCount.trim() !== '';
 
-  // ─── FR-M1-14: Duplicate identifier check ────────────────────────────────
+  const canProceed = !!selectedSampleId;
 
-  function isDuplicateId(id: string): boolean {
-    return registeredSamples.some(
-      (s) => s.id.toLowerCase() === id.trim().toLowerCase()
-    );
-  }
-
-  function validateForm() {
+  async function handleRegister() {
     const newErrors: Record<string, string> = {};
 
-    if (!sampleId.trim()) {
-      newErrors.sampleId = 'Sample identifier is required.';
-    } else if (isDuplicateId(sampleId)) {
-      // FR-M1-14: Duplicate identifier error
-      newErrors.sampleId =
-        `"${sampleId.trim()}" is already registered. Please use a unique identifier.`;
+    if (!sampleIdentifier.trim()) {
+      newErrors.sampleIdentifier = 'Sample identifier is required.';
     }
-
     if (!variety.trim()) {
       newErrors.variety = 'Please select a rice variety.';
     }
-
     if (!grainCount.trim()) {
       newErrors.grainCount = 'Grain count is required.';
     } else if (isNaN(Number(grainCount)) || Number(grainCount) <= 0) {
       newErrors.grainCount = 'Enter a valid grain count.';
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // FR-M1-14: Duplicate identifier check against DB
+      const isUnique = await checkSampleIdentifierUnique(sessionId, sampleIdentifier.trim());
+      if (!isUnique) {
+        setErrors({
+          sampleIdentifier: `"${sampleIdentifier.trim()}" is already registered. Please use a unique identifier.`,
+        });
+        return;
+      }
+
+      const payload = buildSamplePayload(
+        sessionId,
+        sampleIdentifier.trim(),
+        variety,
+        Number(grainCount)
+      );
+      await submitSampleRegistration(payload);
+
+      // Reset form and reload list
+      setSampleIdentifier('');
+      setVariety('');
+      setGrainCount('');
+      setErrors({});
+      setShowDropdown(false);
+      loadData();
+    } catch {
+      setErrors({ sampleIdentifier: 'Failed to register sample. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function handleRegister() {
-    const isValid = validateForm();
-    if (!isValid) return;
-
-    const now = new Date();
-    const registeredAt = `${String(now.getHours()).padStart(2, '0')}:${String(
-      now.getMinutes()
-    ).padStart(2, '0')}`;
-
-    const newSample: RegisteredSample = {
-      id: sampleId.trim(),
-      variety,
-      grainCount,
-      registeredAt,
-    };
-
-    setRegisteredSamples((prev) => [newSample, ...prev]);
-
-    // Reset form
-    setSampleId('');
-    setVariety('');
-    setGrainCount('');
-    setErrors({});
-    setShowDropdown(false);
-  }
-
-  const canProceed = !!selectedSampleId;
+  const bannerText = session
+    ? `KOH ${session.koh_concentration}% • ${session.incubation_duration}h @ ${session.incubation_temperature}°C • Batch ${session.batch_id}`
+    : '—';
 
   return (
     <KeyboardAvoidingView
@@ -152,16 +156,16 @@ export default function RegisterSampleScreen({
           </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>Register Sample</Text>
-            <Text style={styles.headerSubtitle}>Session {sessionId}</Text>
+            <Text style={styles.headerSubtitle}>
+              {session?.name ?? `Session ${sessionId}`}
+            </Text>
           </View>
         </View>
 
         {/* SESSION BANNER */}
         <View style={styles.banner}>
           <Text style={styles.bannerLabel}>Session Treatment</Text>
-          <Text style={styles.bannerValue}>
-            KOH {kohConc}% • {duration}h @ {temperature}°C • Batch {batchId}
-          </Text>
+          <Text style={styles.bannerValue}>{bannerText}</Text>
         </View>
 
         <ScrollView
@@ -175,7 +179,7 @@ export default function RegisterSampleScreen({
           <View style={styles.card}>
             <Text style={styles.cardTitle}>New Sample</Text>
 
-            {/* SAMPLE ID */}
+            {/* SAMPLE IDENTIFIER */}
             <View style={styles.field}>
               <Text style={styles.label}>
                 Sample Identifier{' '}
@@ -184,19 +188,20 @@ export default function RegisterSampleScreen({
               <TextInput
                 style={[
                   styles.input,
-                  errors.sampleId && styles.inputError,
+                  errors.sampleIdentifier && styles.inputError,
                 ]}
                 placeholder={`e.g., ${nextSampleId}`}
                 placeholderTextColor="#9CA3AF"
-                value={sampleId}
+                value={sampleIdentifier}
                 onChangeText={(v) => {
-                  setSampleId(v);
-                  if (errors.sampleId) setErrors((p) => ({ ...p, sampleId: '' }));
+                  setSampleIdentifier(v);
+                  if (errors.sampleIdentifier)
+                    setErrors((p) => ({ ...p, sampleIdentifier: '' }));
                 }}
                 autoCapitalize="characters"
               />
-              {!!errors.sampleId && (
-                <Text style={styles.errorText}>{errors.sampleId}</Text>
+              {!!errors.sampleIdentifier && (
+                <Text style={styles.errorText}>{errors.sampleIdentifier}</Text>
               )}
             </View>
 
@@ -236,7 +241,8 @@ export default function RegisterSampleScreen({
                       onPress={() => {
                         setVariety(item);
                         setShowDropdown(false);
-                        if (errors.variety) setErrors((p) => ({ ...p, variety: '' }));
+                        if (errors.variety)
+                          setErrors((p) => ({ ...p, variety: '' }));
                       }}
                     >
                       <Text
@@ -279,7 +285,8 @@ export default function RegisterSampleScreen({
                 value={grainCount}
                 onChangeText={(v) => {
                   setGrainCount(v);
-                  if (errors.grainCount) setErrors((p) => ({ ...p, grainCount: '' }));
+                  if (errors.grainCount)
+                    setErrors((p) => ({ ...p, grainCount: '' }));
                 }}
               />
               {!!errors.grainCount && (
@@ -291,20 +298,24 @@ export default function RegisterSampleScreen({
             <TouchableOpacity
               style={[
                 styles.registerButton,
-                !allFieldsFilled && styles.registerButtonDisabled,
+                (!allFieldsFilled || submitting) && styles.registerButtonDisabled,
               ]}
               activeOpacity={0.85}
               onPress={handleRegister}
-              disabled={!allFieldsFilled}
+              disabled={!allFieldsFilled || submitting}
             >
-              <Text
-                style={[
-                  styles.registerButtonText,
-                  !allFieldsFilled && styles.registerButtonTextDisabled,
-                ]}
-              >
-                Register Sample
-              </Text>
+              {submitting ? (
+                <ActivityIndicator color="#374151" size="small" />
+              ) : (
+                <Text
+                  style={[
+                    styles.registerButtonText,
+                    !allFieldsFilled && styles.registerButtonTextDisabled,
+                  ]}
+                >
+                  Register Sample
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -336,14 +347,22 @@ export default function RegisterSampleScreen({
                   </View>
 
                   <View style={styles.sampleInfo}>
-                    <Text style={styles.sampleIdText}>{sample.id}</Text>
+                    <Text style={styles.sampleIdText}>
+                      {sample.sample_identifier}
+                    </Text>
                     <Text style={styles.sampleMeta}>
-                      {sample.variety} • {sample.grainCount} grains
+                      {sample.rice_variety} • {sample.grain_count} grains
                     </Text>
                   </View>
                 </TouchableOpacity>
               );
             })}
+
+            {registeredSamples.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No samples registered yet.</Text>
+              </View>
+            )}
           </View>
 
           <View style={{ height: 120 }} />
@@ -359,7 +378,9 @@ export default function RegisterSampleScreen({
             disabled={!canProceed}
             activeOpacity={0.85}
             onPress={() =>
-              navigation?.navigate('ImageCapture', { selectedSampleId })
+              navigation?.navigate('ImageCapture', {
+                sampleId: selectedSampleId,
+              })
             }
           >
             <Text style={styles.proceedButtonText}>
@@ -536,6 +557,12 @@ const styles = StyleSheet.create({
   sampleInfo: { flex: 1 },
   sampleIdText: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 2 },
   sampleMeta: { fontSize: 13, color: '#6B7280' },
+
+  emptyState: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  emptyText: { fontSize: 14, color: '#9CA3AF' },
 
   footer: {
     position: 'absolute',

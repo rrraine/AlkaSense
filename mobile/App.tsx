@@ -9,10 +9,10 @@ import { AuthProvider, useAuthContext } from './src/core/AuthContext';
 
 import LoginScreen from './src/app/LoginScreen';
 import SignUpScreen from './src/app/SignUpScreen';
-import DashboardScreen from './src/app/DashboardScreen';
-import CreateSessionScreen from './src/app/CreateSessionScreen';
-import SessionProgressScreen from './src/app/SessionProgressScreen';
-import RegisterSampleScreen from './src/app/RegisterSampleScreen';
+import DashboardScreen from './src/modules/module1_session/screens/DashboardScreen';
+import CreateSessionScreen from './src/modules/module1_session/screens/CreateSessionScreen';
+import SessionProgressScreen from './src/modules/module1_session/screens/SessionProgressScreen';
+import RegisterSampleScreen from './src/modules/module1_session/screens/RegisterSampleScreen';
 import ImageCaptureScreen from './src/app/ImageCaptureScreen';
 import ImagePreviewScreen from './src/app/ImagePreviewScreen';
 import ValidationResultScreen from './src/app/ValidationResultScreen';

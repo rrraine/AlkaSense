@@ -17,31 +17,29 @@ export async function initDatabase(): Promise<void> {
 
 async function createTables(): Promise<void> {
   await db.execAsync(`
-    -- Sessions table
+    -- Sessions table (target schema)
     CREATE TABLE IF NOT EXISTS sessions (
-      id          TEXT PRIMARY KEY,
-      evaluator_id TEXT NOT NULL,
-      location    TEXT,
-      notes       TEXT,
-      status      TEXT NOT NULL DEFAULT 'in_progress'
-                  CHECK (status IN ('in_progress', 'completed', 'cancelled')),
-      started_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      completed_at TEXT,
-      synced      INTEGER NOT NULL DEFAULT 0
+      id                     TEXT PRIMARY KEY,
+      name                   TEXT NOT NULL,
+      batch_id               TEXT NOT NULL,
+      koh_concentration      REAL NOT NULL,
+      incubation_duration    REAL NOT NULL,
+      incubation_temperature REAL NOT NULL,
+      evaluation_date        TEXT NOT NULL,
+      evaluator_id           TEXT NOT NULL,
+      status                 TEXT NOT NULL DEFAULT 'ACTIVE'
+                             CHECK (status IN ('ACTIVE', 'CLOSED'))
     );
 
-    -- Samples table
+    -- Samples table (target schema)
     CREATE TABLE IF NOT EXISTS samples (
-      id            TEXT PRIMARY KEY,
-      session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      variety_name  TEXT NOT NULL,
-      asv_score     INTEGER NOT NULL CHECK (asv_score BETWEEN 1 AND 7),
-      gt_class      TEXT NOT NULL,
-      confidence    REAL CHECK (confidence BETWEEN 0.0 AND 1.0),
-      image_path    TEXT NOT NULL,
-      heatmap_path  TEXT,
-      captured_at   TEXT NOT NULL DEFAULT (datetime('now')),
-      synced        INTEGER NOT NULL DEFAULT 0
+      id                TEXT PRIMARY KEY,
+      session_id        TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      sample_identifier TEXT NOT NULL,
+      rice_variety      TEXT NOT NULL,
+      grain_count       INTEGER NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'PENDING'
+                        CHECK (status IN ('PENDING', 'IMAGE_SUBMITTED', 'CONFIRMED'))
     );
 
     -- Grain images table

@@ -48,3 +48,15 @@ export async function getSessionById(id: string): Promise<SessionRecord | null> 
   const db = await getDatabase();
   return db.getFirstAsync<SessionRecord>('SELECT * FROM sessions WHERE id = ?', [id]);
 }
+
+export async function getAllSessions(): Promise<SessionRecord[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<SessionRecord>(
+    'SELECT * FROM sessions ORDER BY rowid DESC'
+  );
+}
+
+export async function closeSession(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync("UPDATE sessions SET status = 'CLOSED' WHERE id = ?", [id]);
+}
