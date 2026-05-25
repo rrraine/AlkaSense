@@ -31,11 +31,11 @@ export async function insertUser(payload: UserPayload): Promise<void> {
   );
 
   // DEBUG LOG | DELETE AFTERWARDS ---------------------------------
-    const inserted = await db.getFirstAsync(
-        `SELECT * FROM users WHERE id = ?`,
-        [payload.firebase_uid]
-    );
-    console.log("✅ USER ENTITY SAVED TO SQLITE:", JSON.stringify(inserted, null, 2));
+  const inserted = await db.getFirstAsync(
+    `SELECT * FROM users WHERE id = ?`,
+    [payload.firebase_uid]
+  );
+  console.log("✅ USER ENTITY SAVED TO SQLITE:", JSON.stringify(inserted, null, 2));
 }
 
 export async function getUserById(firebase_uid: string): Promise<User | null> {

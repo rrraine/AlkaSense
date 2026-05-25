@@ -183,6 +183,8 @@ export default function AiRequestScreen({ navigation, route }: any) {
     grainCount = '10',
     session   = 'Spring Harvest 2026',
     answers   = {},
+    sessionId,
+    grainImageId,
   } = route?.params ?? {};
 
   const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -196,6 +198,8 @@ function handleRequestDraft() {
     variety,
     grainCount,
     session,
+    sessionId,
+    grainImageId,
     answers,
   });
 }

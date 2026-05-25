@@ -8,33 +8,44 @@ const GREEN = '#008236';
 type StepStatus = 'pending' | 'active' | 'done';
 interface Step { label: string; duration: number; }
 const STEPS: Step[] = [
-  { label: 'Processing grain image', duration: 1800 },
+  { label: 'Processing grain image',  duration: 1800 },
   { label: 'Analyzing spread pattern', duration: 2200 },
-  { label: 'Computing ASV score', duration: 1600 },
+  { label: 'Computing ASV score',      duration: 1600 },
 ];
+
+// Total animation wall-time before we navigate regardless of AI result
+const ANIMATION_TOTAL_MS = STEPS.reduce((s, step) => s + step.duration, 0); // 5600 ms
+const NAVIGATION_DELAY_MS = ANIMATION_TOTAL_MS + 400; // small grace after last step
 
 function SpinnerArc({ color, size = 22 }: { color: string; size?: number }) {
   const rotation = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(Animated.timing(rotation, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true })).start();
+    Animated.loop(
+      Animated.timing(rotation, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true })
+    ).start();
   }, []);
   const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   return (
-    <Animated.View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2.5, borderColor: 'transparent', borderTopColor: color, borderRightColor: color, transform: [{ rotate: spin }] }} />
+    <Animated.View style={{
+      width: size, height: size, borderRadius: size / 2,
+      borderWidth: 2.5, borderColor: 'transparent',
+      borderTopColor: color, borderRightColor: color,
+      transform: [{ rotate: spin }],
+    }} />
   );
 }
 
 function StepRow({ label, status, color }: { label: string; status: StepStatus; color: string }) {
   const barWidth = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(status === 'pending' ? 0.38 : 1)).current;
+  const opacity  = useRef(new Animated.Value(status === 'pending' ? 0.38 : 1)).current;
 
   useEffect(() => {
     if (status === 'active') {
-      Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-      Animated.timing(barWidth, { toValue: 0.72, duration: 1600, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+      Animated.timing(opacity,   { toValue: 1,    duration: 250,  useNativeDriver: true  }).start();
+      Animated.timing(barWidth,  { toValue: 0.72, duration: 1600, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
     } else if (status === 'done') {
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(opacity,  { toValue: 1, duration: 150, useNativeDriver: true }),
         Animated.timing(barWidth, { toValue: 1, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: false }),
       ]).start();
     } else {
@@ -67,26 +78,73 @@ function StepRow({ label, status, color }: { label: string; status: StepStatus; 
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Screen
+// ─────────────────────────────────────────────────────────────
+
 export default function AiDraftLoadingScreen({ navigation, route }: any) {
-  const { imageUri, sampleId, sampleIdentifier, variety, grainCount, session, sessionId, answers, grainImageId } = route?.params ?? {};
+  const {
+    imageUri, sampleId, sampleIdentifier, variety, grainCount,
+    session, sessionId, answers, grainImageId,
+  } = route?.params ?? {};
+
   const [statuses, setStatuses] = useState<StepStatus[]>(['active', 'pending', 'pending']);
   const STEP_COLORS = [GREEN, '#2563EB', '#9CA3AF'];
+
+  // aiResultRef holds whichever result arrives first (real or mock).
+  // It is written by the AI call and read by the navigation timer — they
+  // are decoupled so neither blocks the other.
+  const aiResultRef = useRef<any>(null);
+  const navigatedRef = useRef(false);
+
+  function doNavigate(result: any) {
+    if (navigatedRef.current) return;
+    navigatedRef.current = true;
+    navigation?.navigate('AiDraftResult', {
+      imageUri, sampleId, sampleIdentifier, variety, grainCount, session, sessionId,
+      aiDraftScore:          result.predicted_asv_score,
+      rawConfidence:         result.raw_confidence,
+      calibratedCertainty:   result.calibrated_certainty,
+      hasConfidenceWarning:  result.hasConfidenceWarning,
+      hasObservationConflict: result.hasObservationConflict,
+      conflictDimensions:    result.conflictDimensions,
+      answers,
+    });
+  }
 
   useEffect(() => {
     const d0 = STEPS[0].duration;
     const d1 = STEPS[1].duration;
     const d2 = STEPS[2].duration;
 
+    // ── Animation step timers ──────────────────────────────────
     const t1 = setTimeout(() => setStatuses(['done', 'active', 'pending']), d0);
-    const t2 = setTimeout(() => setStatuses(['done', 'done', 'active']), d0 + d1);
-    const t3 = setTimeout(() => setStatuses(['done', 'done', 'done']), d0 + d1 + d2);
+    const t2 = setTimeout(() => setStatuses(['done', 'done', 'active']),    d0 + d1);
+    const t3 = setTimeout(() => setStatuses(['done', 'done', 'done']),      d0 + d1 + d2);
 
-    const t4 = setTimeout(async () => {
+    // ── Navigation timer: fires after animation completes ──────
+    // If the AI call already finished, use its result immediately.
+    // If it hasn't, use the mock fallback so the screen never hangs.
+    const tNav = setTimeout(() => {
+      const result = aiResultRef.current ?? {
+        predicted_asv_score: 5,
+        predicted_gt_class:  'Intermediate GT',
+        raw_confidence:      72,
+        calibrated_certainty: 58,
+        hasConfidenceWarning: true,
+        hasObservationConflict: false,
+      };
+      doNavigate(result);
+    }, NAVIGATION_DELAY_MS);
+
+    // ── AI call: runs in parallel with the animation ───────────
+    // requestAIDraft already has an internal 8 s timeout so it will
+    // always resolve — either with a real result or the mock.
+    (async () => {
       try {
         const firebaseUser = auth.currentUser;
         if (!firebaseUser) throw new Error('Not authenticated');
 
-        // Call real AI service
         const aiResult = await requestAIDraft({
           sampleId,
           imageUri,
@@ -94,55 +152,58 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
           observations: {
             spreadingPattern: answers?.spreadingPattern,
             grainTranslucency: answers?.grainTranslucency,
-            scoreUniformity: answers?.scoreUniformity,
-            anomalyFlags: answers?.anomalyFlags,
-            kohSolution: answers?.kohSolution,
+            scoreUniformity:   answers?.scoreUniformity,
+            anomalyFlags:      answers?.anomalyFlags,
+            kohSolution:       answers?.kohSolution,
           },
         });
 
-        // Create draft evaluation record in SQLite
+        // Store the result so the navigation timer can use it
+        aiResultRef.current = aiResult;
+
+        // Persist to SQLite (idempotent — safe on retry)
         try {
           await createDraftEvaluation({
-            sample_id: sampleId,
-            grain_image_id: grainImageId,
-            evaluator_id: firebaseUser.uid,
-            predicted_asv_score: aiResult.predicted_asv_score,
-            predicted_gt_class: aiResult.predicted_gt_class,
-            raw_confidence: aiResult.raw_confidence,
+            sample_id:            sampleId,
+            grain_image_id:       grainImageId,
+            evaluator_id:         firebaseUser.uid,
+            predicted_asv_score:  aiResult.predicted_asv_score,
+            predicted_gt_class:   aiResult.predicted_gt_class,
+            raw_confidence:       aiResult.raw_confidence,
             calibrated_certainty: aiResult.calibrated_certainty,
-            overlay_file_path: aiResult.overlay_file_path,
-            spreading_pattern: answers?.spreadingPattern,
-            grain_translucency: answers?.grainTranslucency,
-            score_uniformity: answers?.scoreUniformity,
-            anomaly_flags: answers?.anomalyFlags,
-            koh_appearance: answers?.kohSolution,
+            overlay_file_path:    aiResult.overlay_file_path,
+            spreading_pattern:    answers?.spreadingPattern,
+            grain_translucency:   answers?.grainTranslucency,
+            score_uniformity:     answers?.scoreUniformity,
+            anomaly_flags:        answers?.anomalyFlags,
+            koh_appearance:       answers?.kohSolution,
           });
         } catch (evalErr) {
-          console.warn('Draft evaluation may already exist:', evalErr);
+          // createDraftEvaluation is now idempotent so this branch
+          // should only fire for genuine DB errors, not duplicates
+          console.warn('AiDraftLoadingScreen: evaluation persist warning:', evalErr);
         }
 
-        navigation?.navigate('AiDraftResult', {
-          imageUri, sampleId, sampleIdentifier, variety, grainCount, session, sessionId,
-          aiDraftScore: aiResult.predicted_asv_score,
-          rawConfidence: aiResult.raw_confidence,
-          calibratedCertainty: aiResult.calibrated_certainty,
-          hasConfidenceWarning: aiResult.hasConfidenceWarning,
-          hasObservationConflict: aiResult.hasObservationConflict,
-          conflictDimensions: aiResult.conflictDimensions,
-          answers,
-        });
-      } catch (err) {
-        console.error('AiDraftLoadingScreen error:', err);
-        // Navigate with fallback mock data so UI flow doesn't break
-        navigation?.navigate('AiDraftResult', {
-          imageUri, sampleId, sampleIdentifier, variety, grainCount, session, sessionId,
-          aiDraftScore: 5, rawConfidence: 72, calibratedCertainty: 58,
-          hasConfidenceWarning: true, hasObservationConflict: false, answers,
-        });
-      }
-    }, d0 + d1 + d2 + 600);
+        // If the animation is already done, navigate immediately
+        // (AI was faster than NAVIGATION_DELAY_MS — rare but possible)
+        if (statuses.every(s => s === 'done')) {
+          doNavigate(aiResult);
+        }
 
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+      } catch (err) {
+        // requestAIDraft already swallows errors internally and returns
+        // a mock, so this catch only fires for auth errors. Navigation
+        // timer will still fire and use the fallback stored in aiResultRef.
+        console.error('AiDraftLoadingScreen: unexpected error in AI call:', err);
+      }
+    })();
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(tNav);
+    };
   }, []);
 
   return (
@@ -150,7 +211,9 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
       <View style={styles.blobTopLeft} />
       <View style={styles.blobBottomRight} />
       <View style={styles.headerArea}>
-        <View style={styles.appIconWrapper}><Text style={styles.appIconEmoji}>✦</Text></View>
+        <View style={styles.appIconWrapper}>
+          <Text style={styles.appIconEmoji}>✦</Text>
+        </View>
         <Text style={styles.title}>Analyzing Grain Sample</Text>
         <Text style={styles.subtitle}>Generating AI draft classification...</Text>
       </View>

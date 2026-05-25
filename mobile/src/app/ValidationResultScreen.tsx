@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image, ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { submitValidatedImage } from '../services/ImageService';
+import { SessionRepository } from '../db/repositories/SessionRepository';
 
 type ValidationStatus = 'accepted' | 'protocol_violation' | 'quality_failure';
 type PipelineStatus = 'pass' | 'fail' | 'skipped';
 
 const GREEN = '#008236';
+const sessionRepo = new SessionRepository();
 
 interface BaseConfig {
   status: ValidationStatus;
@@ -22,7 +24,6 @@ interface ErrorConfig extends BaseConfig {
 }
 type StatusConfig = BaseConfig | ErrorConfig;
 
-// Fallback config when no backend result is passed yet
 const FALLBACK_CONFIG: Record<ValidationStatus, StatusConfig> = {
   accepted: {
     status: 'accepted', label: 'ACCEPTED',
@@ -74,12 +75,50 @@ function PipelineIcon({ pipelineStatus }: { pipelineStatus: PipelineStatus }) {
 }
 
 export default function ValidationResultScreen({ navigation, route }: any) {
-  const { imageUri, sampleId, sample_identifier, variety, grainCount, session, sessionId: routeSessionId } = route.params;
-  
-  // Use sessionId from params, fallback to session.id if available
-  const sessionId = routeSessionId ?? session?.id;
+  const {
+    imageUri,
+    sampleId,
+    sample_identifier,
+    variety,
+    grainCount,
+    session,
+    sessionId: routeSessionId,
+  } = route.params;
 
-  // Use backend result if provided, else use fallback config (dev mode)
+  // Resolve sessionId from params: prefer an explicit string sessionId,
+  // then session.id if session is a full object. ImageCaptureScreen passes
+  // session as a name string so session?.id is always undefined — the
+  // useEffect below handles that case by querying SQLite for the active session.
+  const paramsSessionId =
+    typeof routeSessionId === 'string' && routeSessionId
+      ? routeSessionId
+      : typeof session === 'object' && session?.id
+      ? session.id
+      : null;
+
+  const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(paramsSessionId);
+  const [sessionResolved, setSessionResolved] = useState(!!paramsSessionId);
+  const [proceeding, setProceeding] = useState(false);
+
+  useEffect(() => {
+    if (resolvedSessionId) return; // already have it from params
+
+    (async () => {
+      try {
+        const active = await sessionRepo.getCurrentActiveSession();
+        if (active?.id) {
+          setResolvedSessionId(active.id);
+        } else {
+          console.error('ValidationResultScreen: no active session found in SQLite');
+        }
+      } catch (err) {
+        console.error('ValidationResultScreen: failed to resolve active session:', err);
+      } finally {
+        setSessionResolved(true);
+      }
+    })();
+  }, []);
+
   const validationStatus: ValidationStatus = route.params.validationStatus ?? 'accepted';
   const config = FALLBACK_CONFIG[validationStatus];
   const isAccepted = validationStatus === 'accepted';
@@ -87,22 +126,34 @@ export default function ValidationResultScreen({ navigation, route }: any) {
   const errorConfig = !isAccepted ? (config as ErrorConfig) : null;
 
   async function handleProceed() {
-    // Persist image to SQLite when user proceeds
+    if (!resolvedSessionId) {
+      console.error('ValidationResultScreen: cannot proceed — sessionId is still unresolved');
+      return;
+    }
+    setProceeding(true);
     try {
       await submitValidatedImage({
         sampleId,
-        sessionId,
+        sessionId: resolvedSessionId,
         imagePath: imageUri,
         validationStatus: 'Accepted',
       });
     } catch (err) {
       console.error('ValidationResultScreen persist error:', err);
+    } finally {
+      setProceeding(false);
     }
-    navigation.navigate('ExpertObservation', { imageUri, sampleId, sample_identifier, variety, grainCount, session, sessionId });
+    navigation.navigate('ExpertObservation', {
+      imageUri, sampleId, sample_identifier, variety, grainCount, session,
+      sessionId: resolvedSessionId,
+    });
   }
 
   function handleRecapture() {
-    navigation.navigate('ImageCapture', { sampleId, sample_identifier, variety, grainCount, session, sessionId });
+    navigation.navigate('ImageCapture', {
+      sampleId, sample_identifier, variety, grainCount, session,
+      sessionId: resolvedSessionId,
+    });
   }
 
   const displaySampleLabel = sample_identifier ?? 'Unknown sample';
@@ -195,8 +246,15 @@ export default function ValidationResultScreen({ navigation, route }: any) {
       <View style={styles.footer}>
         {isAccepted ? (
           <>
-            <TouchableOpacity style={styles.proceedBtn} onPress={handleProceed}>
-              <Text style={styles.proceedText}>Proceed to Evaluation  →</Text>
+            <TouchableOpacity
+              style={[styles.proceedBtn, (!sessionResolved || proceeding) && styles.btnDisabled]}
+              onPress={handleProceed}
+              disabled={!sessionResolved || proceeding}
+            >
+              {proceeding
+                ? <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.proceedText}>Proceed to Evaluation  →</Text>
+              }
             </TouchableOpacity>
             <TouchableOpacity style={styles.recaptureBtn} onPress={handleRecapture}>
               <Text style={styles.recaptureText}>Recapture Image</Text>
@@ -276,6 +334,7 @@ const styles = StyleSheet.create({
   submittedImage: { width: '100%', height: 280, borderRadius: 12, resizeMode: 'cover', backgroundColor: '#F3F4F6' },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#FFFFFF', gap: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   proceedBtn: { backgroundColor: GREEN, borderRadius: 16, paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
+  btnDisabled: { opacity: 0.5 },
   proceedText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
   recaptureBtn: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 16, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   recaptureText: { color: '#111827', fontWeight: '600', fontSize: 16 },
