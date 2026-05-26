@@ -194,11 +194,16 @@ def train():
     for k, v in results.items():
         print(f"  {k}: {v:.4f}")
 
-    # ── Export ───────────────────────────────────────────────────────────
-    model.save(f"{cfg['export']['saved_model_dir']}/alkasense_{run_tag}")
-    print(f"[INFO] SavedModel exported → models/exported/alkasense_{run_tag}")
+    # ── Export ───────────────────────────────────────────────────────────────
+    export_dir = f"{cfg['export']['saved_model_dir']}/alkasense_{run_tag}"
+    model.save(export_dir)
+    print(f"[INFO] SavedModel exported → {export_dir}")
 
-    return model, run_tag
+    # Also save as .keras for GradCAM backend
+    # keras_path = f"{cfg['export']['saved_model_dir']}/alkasense_{run_tag}.keras"
+    # model.save(keras_path)
+    model.save(f"{cfg['export']['saved_model_dir']}/alkasense_latest.keras")
+    print(f"[INFO] Keras model exported → {cfg['export']['saved_model_dir']}/alkasense_latest.keras")
 
 
 if __name__ == "__main__":
