@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { auth } from '../core/firebase';
 import {
   View,
   Text,
@@ -19,6 +20,11 @@ import ProtocolChecklist, {
 import { validateImage, submitValidatedImage } from '../services/ImageService';
 
 const GREEN = '#008236';
+
+export type ValidationStatus =
+  | 'Accepted'
+  | 'Protocol Violation'
+  | 'Quality Failure';
 
 export default function ImagePreviewScreen({ navigation, route }: any) {
   const {
@@ -50,7 +56,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
     setIsSubmitting(true);
     try {
 
-      // first layer validation
+      // Layer 1 + Layer 2 validation pipeline
       const result = await validateImage({
         sampleId,
         imageUri,
@@ -60,23 +66,33 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
         frameAligned: protocol.frameAligned,
       });
 
-      if (result.status !== 'accepted') {
-        Alert.alert(
-          'Validation Failed',
-          result.rejection?.reason ?? 'Image did not pass validation. Please retake.',
-          [{ text: 'Retake', onPress: () => navigation.goBack() }]
-        );
-        return;
-      }
+      // Map outcome to ValidationStatus for the DB record
+      const validationStatus: ValidationStatus =
+        result.status === 'accepted'
+          ? 'Accepted'
+          : result.status === 'protocol_violation'
+          ? 'Protocol Violation'
+          : 'Quality Failure';
 
+      // Always persist — rejected records are retained for audit,
+      // accepted records advance the sample status.
       await submitValidatedImage({
         sampleId,
         sessionId,
         imagePath: imageUri,
-        validationStatus: 'Accepted',
+        validationStatus,
+        validationResult: result,
+        protocol: {
+          uvLight: protocol.uvLight,
+          whiteTray: protocol.whiteTray,
+          singleLayer: protocol.singleLayer,
+          frameAligned: protocol.frameAligned,
+        },
+        evaluatorId: auth.currentUser?.uid,
       });
 
-      // at this point, both layers are already validated before navigating to the ValidationResult
+      // Navigate to ValidationResult regardless of outcome —
+      // the result screen handles the Resubmit vs Proceed branching.
       navigation.navigate('ValidationResult', {
         result,
         imageUri,
@@ -87,6 +103,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
         session,
         sessionId,
       });
+
     } catch (err: any) {
       Alert.alert('Submission Error', err?.message ?? 'An unexpected error occurred.');
     } finally {
