@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { initDatabase } from './src/db/database';
 import { attachInterceptors } from './src/api/interceptors';
 import { AuthProvider, useAuthContext } from './src/core/AuthContext';
+import { useSessionStore } from './src/store/sessionStore';
 
 import LoginScreen from './src/app/LoginScreen';
 import SignUpScreen from './src/app/SignUpScreen';
@@ -83,7 +84,9 @@ function AppNavigator() {
 export default function App() {
   useEffect(() => {
     attachInterceptors();
-    initDatabase().catch((e: any) => console.error('DB init failed:', e.message));
+    initDatabase()
+      .then(() => useSessionStore.getState().restoreActiveSession())
+      .catch((e: any) => console.error('DB init failed:', e.message));
   }, []);
 
   return (

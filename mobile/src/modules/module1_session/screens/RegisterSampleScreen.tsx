@@ -139,6 +139,34 @@ export default function RegisterSampleScreen({
     ? `KOH ${session.koh_concentration}% • ${session.incubation_duration}h @ ${session.incubation_temperature}°C • Batch ${session.batch_id}`
     : '—';
 
+  // FR-M1-06: Block sample registration if no session context was provided
+  if (!sessionId) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>Register Sample</Text>
+          </View>
+        </View>
+        <View style={styles.noSessionState}>
+          <Text style={styles.noSessionTitle}>No Active Session</Text>
+          <Text style={styles.noSessionText}>
+            A session must be created before samples can be registered.
+          </Text>
+          <TouchableOpacity
+            style={styles.noSessionBtn}
+            onPress={() => navigation?.navigate('Dashboard')}
+          >
+            <Text style={styles.noSessionBtnText}>Go to Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboard}
@@ -397,6 +425,38 @@ export default function RegisterSampleScreen({
 const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   root: { flex: 1, backgroundColor: '#F3F4F6' },
+
+  // FR-M1-06: No-session guard state
+  noSessionState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  noSessionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  noSessionText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  noSessionBtn: {
+    backgroundColor: GREEN,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  noSessionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
 
   header: {
     backgroundColor: GREEN,

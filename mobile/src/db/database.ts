@@ -11,6 +11,27 @@ export async function initDatabase(): Promise<void> {
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
   `);
+
+  // One-time migration: old sessions table missing 'name' column — drop and recreate all tables
+  const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(sessions)`);
+  const hasNewSchema = cols.some((c) => c.name === 'name');
+  if (cols.length > 0 && !hasNewSchema) {
+    await db.execAsync(`
+      DROP TABLE IF EXISTS session_reports;
+      DROP TABLE IF EXISTS rejection_log;
+      DROP TABLE IF EXISTS reference_cases;
+      DROP TABLE IF EXISTS confirmed_scores;
+      DROP TABLE IF EXISTS draft_scores;
+      DROP TABLE IF EXISTS observation_profiles;
+      DROP TABLE IF EXISTS evaluation_records;
+      DROP TABLE IF EXISTS correction_log;
+      DROP TABLE IF EXISTS grain_images;
+      DROP TABLE IF EXISTS samples;
+      DROP TABLE IF EXISTS audit_log;
+      DROP TABLE IF EXISTS sessions;
+    `);
+  }
+
   await createTables();
   await createTargetSchemaTables();
 }

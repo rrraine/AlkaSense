@@ -126,8 +126,7 @@ export default function SignUpScreen({ navigation }: any) {
         role,
         institution,
       }).catch((e: any) => console.warn("Backend registration skipped:", e?.message));
-
-      navigation.navigate("Login");
+      // createUserWithEmailAndPassword auto-signs in — onAuthStateChanged drives the stack switch
     } catch (error: any) {
       console.log("SIGNUP ERROR:", JSON.stringify(error, null, 2));
       if (error.code === "auth/email-already-in-use") {

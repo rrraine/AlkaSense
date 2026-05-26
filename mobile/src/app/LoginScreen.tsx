@@ -73,8 +73,7 @@ export default function LoginScreen({ navigation }: any) {
 
       // Soft backend sync — non-fatal if server is unreachable offline
       apiClient.get('/auth/me').catch(() => {});
-
-      navigation.navigate("Dashboard");
+      // Auth state change drives the stack switch — no manual navigate needed
     } catch (error: any) {
       console.log("Login failed:", error.message);
       if (

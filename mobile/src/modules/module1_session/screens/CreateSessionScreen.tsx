@@ -20,11 +20,14 @@ import {
   checkNameUnique,
   submitSessionCreation,
 } from '../services/SessionService';
+import { useSessionStore } from '../../../store/sessionStore';
+import { validateBatchMetadata } from '../../../validators/BatchMetadataValidator';
 
 const GREEN = '#008236';
 
 export default function CreateSessionScreen({ navigation }: any) {
   const { user } = useAuthContext();
+  const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const [loading, setLoading] = useState(false);
   const [hasActiveSession, setHasActiveSession] = useState(false);
 
@@ -74,6 +77,16 @@ export default function CreateSessionScreen({ navigation }: any) {
     if (!form.incubationDuration.trim()) newErrors.incubationDuration = 'Incubation duration is required.';
     if (!form.incubationTemperature.trim()) newErrors.incubationTemperature = 'Incubation temperature is required.';
 
+    // FR-M1-04: Range validation on numeric treatment fields
+    if (Object.keys(newErrors).length === 0) {
+      const rangeErrors = validateBatchMetadata({
+        kohConcentration: form.kohConcentration,
+        incubationDuration: form.incubationDuration,
+        incubationTemperature: form.incubationTemperature,
+      });
+      Object.assign(newErrors, rangeErrors);
+    }
+
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
@@ -99,6 +112,9 @@ export default function CreateSessionScreen({ navigation }: any) {
         evaluator_id: user?.uid ?? 'unknown',
       });
 
+      // FR-M1-07: Mark this session as the active session in the store
+      setActiveSession(session.id);
+
       // FR-M1-09: Auto-navigate to Sample Registration after session is created
       navigation?.navigate('RegisterSample', { sessionId: session.id });
 
@@ -111,7 +127,8 @@ export default function CreateSessionScreen({ navigation }: any) {
       });
       setSelectedDate(new Date());
       setIsDateOverridden(false);
-    } catch {
+    } catch (e: any) {
+      console.error('[CreateSession] Error:', e?.message ?? e);
       setErrors({ sessionName: 'Failed to create session. Please try again.' });
     } finally {
       setLoading(false);
