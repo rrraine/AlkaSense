@@ -205,7 +205,7 @@ export default function ValidationResultScreen({ navigation, route }: any) {
   }, []);
 
   function handleProceed() {
-    navigation.navigate('ExpertObservation', { imageId, sampleId });
+    navigation.navigate('ExpertObservation', { imageId, imageUri, sampleId });
   }
 
   function handleRecapture() {

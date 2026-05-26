@@ -3,7 +3,7 @@ import { Skia, ColorType, AlphaType } from '@shopify/react-native-skia';
 import { ClassificationResult } from '../shared/types/scoring.types';
 import { CertaintyComputor } from './CertaintyComputor';
 
-const MODEL_ASSET = require('../../assets/models/alkasense.tflite');
+const MODEL_ASSET = require('../../assets/models/alkasense_v2.tflite');
 const INPUT_SIZE = 240;
 const NUM_CLASSES = 7;
 

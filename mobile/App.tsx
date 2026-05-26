@@ -16,20 +16,20 @@ import RegisterSampleScreen from './src/modules/module1_session/screens/Register
 import ImageCaptureScreen from './src/modules/module2_image/screens/ImageCaptureScreen';
 import ImagePreviewScreen from './src/modules/module2_image/screens/ImagePreviewScreen';
 import ValidationResultScreen from './src/modules/module2_image/screens/ValidationResultScreen';
-import ExpertObservationScreen from './src/app/ExpertObservationScreen';
+import ExpertObservationScreen from './src/modules/module3_evaluation/screens/ExpertObservationScreen';
 import ManualScoreScreen from './src/app/ManualScoreScreen';
-import ScoreConfirmedScreen from './src/app/ScoreConfirmedScreen';
+import ScoreConfirmedScreen from './src/modules/module3_evaluation/screens/ScoreConfirmedScreen';
 import SamplePreviewScreen from './src/app/SamplePreviewScreen';
-import ScoreCorrectionScreen from './src/app/ScoreCorrectionScreen';
-import CorrectionLogScreen from './src/app/CorrectionLogScreen';
+import ScoreCorrectionScreen from './src/modules/module3_evaluation/screens/ScoreCorrectionScreen';
+import CorrectionLogScreen from './src/modules/module3_evaluation/screens/CorrectionLogScreen';
 import ReferenceLibraryScreen from './src/app/ReferenceLibraryScreen';
 import BatchSummaryScreen from './src/app/BatchSummaryScreen';
 import UploadReportScreen from './src/app/UploadReportScreen';
-import AiRequestScreen from './src/app/AiRequestScreen';
-import AiDraftLoadingScreen from './src/app/AiDraftLoadingScreen';
-import AiDraftResultScreen from './src/app/AiDraftResultScreen';
-import AiExplainabilityScreen from './src/app/AiExplainabilityScreen';
-import AiScoreConfirmScreen from './src/app/AiScoreConfirmScreen';
+import AiRequestScreen from './src/modules/module3_evaluation/screens/AiRequestScreen';
+import AiDraftLoadingScreen from './src/modules/module3_evaluation/screens/AiDraftLoadingScreen';
+import AiDraftResultScreen from './src/modules/module3_evaluation/screens/AiDraftResultScreen';
+import AiExplainabilityScreen from './src/modules/module3_evaluation/screens/AiExplainabilityScreen';
+import AiScoreConfirmScreen from './src/modules/module3_evaluation/screens/AiScoreConfirmScreen';
 
 const Stack = createNativeStackNavigator();
 

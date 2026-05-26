@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,9 @@ import {
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+import { fetchFilteredCases } from '../modules/module3_evaluation/services/LibraryService';
+import type { ReferenceCase } from '../shared/types/scoring.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -61,52 +64,27 @@ interface LibraryEntry {
   anomaly?: string;
 }
 
-const LIBRARY: LibraryEntry[] = [
-  {
-    id: 'L001',
-    asv: 5,
-    variety: 'NSIC Rc 222',
-    date: 'May 15, 2026',
-    tags: ['ai_draft', 'evidence'],
-  },
-  {
-    id: 'L002',
-    asv: 3,
-    variety: 'IR64',
-    date: 'May 14, 2026',
-    tags: [],
-  },
-  {
-    id: 'L003',
-    asv: 7,
-    variety: 'NSIC Rc 222',
-    date: 'May 14, 2026',
-    tags: ['ai_draft', 'deviated', 'evidence'],
-    anomaly: 'Longitudinal Cracking',
-  },
-  {
-    id: 'L004',
-    asv: 8,
-    variety: 'NSIC Rc 222',
-    date: 'May 14, 2026',
-    tags: ['ai_draft', 'deviated', 'evidence'],
-    anomaly: 'Floating Grains',
-  },
-  {
-    id: 'L005',
-    asv: 2,
-    variety: 'PSB Rc 18',
-    date: 'May 13, 2026',
-    tags: ['evidence'],
-  },
-  {
-    id: 'L006',
-    asv: 4,
-    variety: 'NSIC Rc 160',
-    date: 'May 13, 2026',
-    tags: ['ai_draft'],
-  },
-];
+const ANOMALY_DISPLAY: Record<string, string> = {
+  Cracking:  'Longitudinal Cracking',
+  Unilateral:'Unilateral Spreading',
+  Floating:  'Floating Grains',
+};
+
+function mapReferenceCase(rc: ReferenceCase): LibraryEntry {
+  const tags: Array<'ai_draft' | 'evidence' | 'deviated'> = [];
+  if (rc.ai_draft_used)       tags.push('ai_draft');
+  if (rc.deviated_from_draft) tags.push('deviated');
+  if (rc.image_path)          tags.push('evidence');
+
+  const firstFlag = rc.anomaly_flags.find((f) => f !== 'None');
+  const anomaly = firstFlag ? (ANOMALY_DISPLAY[firstFlag] ?? firstFlag) : undefined;
+
+  const date = rc.confirmed_at
+    ? new Date(rc.confirmed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—';
+
+  return { id: rc.id, asv: rc.asv_score, variety: rc.rice_variety, date, tags, anomaly };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -298,6 +276,13 @@ export default function ReferenceLibraryScreen({ navigation }: any) {
   const [selectedVariety, setSelectedVariety] = useState('All varieties');
   const [selectedAnomalies, setSelectedAnomalies] = useState<string[]>([]);
   const [varietyDropdownOpen, setVarietyDropdownOpen] = useState(false);
+  const [dbEntries, setDbEntries]       = useState<LibraryEntry[]>([]);
+
+  useEffect(() => {
+    fetchFilteredCases({})
+      .then((cases) => setDbEntries(cases.map(mapReferenceCase)))
+      .catch((e) => console.log('[ReferenceLibrary] fetch error:', e?.message ?? e));
+  }, []);
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
@@ -337,7 +322,7 @@ export default function ReferenceLibraryScreen({ navigation }: any) {
     selectedAnomalies.length;
 
   // Filter the entries
-  const filtered = LIBRARY.filter((entry) => {
+  const filtered = dbEntries.filter((entry) => {
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
