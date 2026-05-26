@@ -20,10 +20,12 @@ const rejectionLogRepo = new RejectionLogRepository();
 // Dev toggle — set to true to skip the real API call
 // ─────────────────────────────────────────────────────────────
 const DEV_MOCK_LAYER2 = true; // auto-true in dev, auto-false in production builds
-// false | true | __DEV__
+// value: false | true | __DEV__
+// true = use mock layer
+// false = enable API
 
 type MockLayer2Outcome = 'pass' | 'blur' | 'exposure_under' | 'exposure_over' | 'grain_visibility';
-const DEV_MOCK_OUTCOME: MockLayer2Outcome = 'grain_visibility'; // ← CHANGE ME to test different cases !!!
+const DEV_MOCK_OUTCOME: MockLayer2Outcome = 'pass'; // ← CHANGE ME to test different cases !!!
 
 // ─────────────────────────────────────────────────────────────
 // Validation Result shape
