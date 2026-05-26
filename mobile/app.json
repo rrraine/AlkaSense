@@ -6,6 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "assets/**"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -33,5 +36,7 @@
       "expo-secure-store"
     ],
     "sdkVersion": "54.0.0"
+    
   }
+  
 }

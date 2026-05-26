@@ -1,14 +1,10 @@
-import { useEffect, useState } from 'react';
-import { View, Text, Button, ScrollView, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { initDatabase } from './src/db/database';
 import { UserProvider } from './src/core/UserContext';
-
-
-import { SessionRepository } from './src/db/repositories/SessionRepository';
-import { SampleRepository } from './src/db/repositories/SampleRepository';
 
 import CreateSessionScreen from './src/app/CreateSessionScreen';
 import LoginScreen from './src/app/LoginScreen';
@@ -34,111 +30,44 @@ import AiDraftResultScreen from './src/app/AiDraftResultScreen';
 import AiExplainabilityScreen from './src/app/AiExplainabilityScreen';
 import AiScoreConfirmScreen from './src/app/AiScoreConfirmScreen';
 
-const sessionRepo = new SessionRepository();
-const sampleRepo = new SampleRepository();
-
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   useEffect(() => {
     initDatabase().catch((e: any) => console.error('DB init failed:', e.message));
   }, []);
- 
+
   return (
     <UserProvider>
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
-        <Stack.Screen name="SessionProgress" component={SessionProgressScreen} />
-        <Stack.Screen name="RegisterSample" component={RegisterSampleScreen} />
-        <Stack.Screen name="ImageCapture" component={ImageCaptureScreen} />
-        <Stack.Screen name="ImagePreview" component={ImagePreviewScreen} />
-        <Stack.Screen name="ValidationResult" component={ValidationResultScreen} />
-        <Stack.Screen name="ExpertObservation" component={ExpertObservationScreen} />
-        <Stack.Screen name="ManualScore" component={ManualScoreScreen} />
-        <Stack.Screen name="ScoreConfirmed" component={ScoreConfimedScreen} />
-        <Stack.Screen name="SamplePreview" component={SamplePreviewScreen} />
-        <Stack.Screen name="ScoreCorrection" component={ScoreCorrectionScreen} />
-        <Stack.Screen name="CorrectionLog" component={CorrectionLogScreen} />
-        <Stack.Screen name="ReferenceLibrary" component={ReferenceLibraryScreen} />
-        <Stack.Screen name="BatchSummary" component={BatchSummaryScreen} />
-        <Stack.Screen name="UploadReport" component={UploadReportScreen} />
-        <Stack.Screen name="AiRequest" component={AiRequestScreen} />
-        <Stack.Screen name="AiDraftLoading" component={AiDraftLoadingScreen} />
-        <Stack.Screen name="AiDraftResult" component={AiDraftResultScreen} />
-        <Stack.Screen name="AiExplainability" component={AiExplainabilityScreen} />
-        <Stack.Screen name="AiScoreConfirm" component={AiScoreConfirmScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <Stack.Screen name="CreateSession" component={CreateSessionScreen} />
+          <Stack.Screen name="SessionProgress" component={SessionProgressScreen} />
+          <Stack.Screen name="RegisterSample" component={RegisterSampleScreen} />
+          <Stack.Screen name="ImageCapture" component={ImageCaptureScreen} />
+          <Stack.Screen name="ImagePreview" component={ImagePreviewScreen} />
+          <Stack.Screen name="ValidationResult" component={ValidationResultScreen} />
+          <Stack.Screen name="ExpertObservation" component={ExpertObservationScreen} />
+          <Stack.Screen name="ManualScore" component={ManualScoreScreen} />
+          <Stack.Screen name="ScoreConfirmed" component={ScoreConfimedScreen} />
+          <Stack.Screen name="SamplePreview" component={SamplePreviewScreen} />
+          <Stack.Screen name="ScoreCorrection" component={ScoreCorrectionScreen} />
+          <Stack.Screen name="CorrectionLog" component={CorrectionLogScreen} />
+          <Stack.Screen name="ReferenceLibrary" component={ReferenceLibraryScreen} />
+          <Stack.Screen name="BatchSummary" component={BatchSummaryScreen} />
+          <Stack.Screen name="UploadReport" component={UploadReportScreen} />
+          <Stack.Screen name="AiRequest" component={AiRequestScreen} />
+          <Stack.Screen name="AiDraftLoading" component={AiDraftLoadingScreen} />
+          <Stack.Screen name="AiDraftResult" component={AiDraftResultScreen} />
+          <Stack.Screen name="AiExplainability" component={AiExplainabilityScreen} />
+          <Stack.Screen name="AiScoreConfirm" component={AiScoreConfirmScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
     </UserProvider>
   );
-  // const [logs, setLogs] = useState<string[]>([]);
-
-  // const log = (msg: string) => setLogs(prev => [...prev, msg]);
-
-  // useEffect(() => {
-  //   initDatabase()
-  //     .then(() => log('✅ Database initialized'))
-  //     .catch(e => log(`❌ DB init failed: ${e.message}`));
-  // }, []);
-
-  // async function runTests() {
-  //   setLogs([]);
-  //   try {
-  //     log('Testing session creation...');
-  //     const session = await sessionRepo.create('evaluator-001', 'PhilRice Lab A', 'Test batch');
-  //     log(`✅ Session created: ${session.id}`);
-
-  //     log('Testing sample creation...');
-  //     const sample = await sampleRepo.create({
-  //       session_id: session.id,
-  //       variety_name: 'NSIC Rc222',
-  //       asv_score: 4,
-  //       gt_class: 'Intermediate GT',
-  //       confidence: 0.92,
-  //       image_path: '/test/image.jpg',
-  //     });
-  //     log(`✅ Sample created: ${sample.id}`);
-
-  //     log('Testing fetch by session...');
-  //     const samples = await sampleRepo.getBySession(session.id);
-  //     log(`✅ Found ${samples.length} sample(s) in session`);
-
-  //     log('Testing correction log...');
-  //     await sampleRepo.logCorrection(sample.id, 4, 5, 'Kernel too spread');
-  //     log('✅ Correction logged');
-
-  //     log('Testing session completion...');
-  //     await sessionRepo.complete(session.id);
-  //     const completed = await sessionRepo.getById(session.id);
-  //     log(`✅ Session status: ${completed.status}`);
-
-  //     log('Testing unsynced query...');
-  //     const unsynced = await sessionRepo.getUnsynced();
-  //     log(`✅ Unsynced sessions: ${unsynced.length}`);
-
-  //     log('');
-  //     log('🎉 All tests passed!');
-
-  //   } catch (e: any) {
-  //     log(`❌ Test failed: ${e.message}`);
-  //   }
-  
-
-  // return (
-  //   <ScrollView style={styles.container}>
-  //     <Text style={styles.title}>AlkaSense DB Test</Text>
-  //     <Button title="Run Tests" onPress={runTests} />
-  //     <View style={styles.logs}>
-  //       {logs.map((l, i) => (
-  //         <Text key={i} style={styles.log}>{l}</Text>
-  //       ))}
-  //     </View>
-  //   </ScrollView>
-  // );
 }
 
 const styles = StyleSheet.create({
