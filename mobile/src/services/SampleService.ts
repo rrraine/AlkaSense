@@ -47,9 +47,16 @@ export class SampleService {
       );
     }
 
-    return await sampleRepository.create(
-      payload
-    );
+    try {
+      return await sampleRepository.create(payload);
+    } catch (err: any) {
+      // SQLite UNIQUE constraint fires when the identifier collides across sessions.
+      // Convert the raw driver error into a user-friendly message.
+      if (err?.message?.includes('UNIQUE constraint failed')) {
+        throw new Error('Sample identifier already exists in this session. Please use a different identifier.');
+      }
+      throw err;
+    }
   }
 
   // ───────────────────────────────────────────────────────────

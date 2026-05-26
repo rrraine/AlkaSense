@@ -96,12 +96,14 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
   // are decoupled so neither blocks the other.
   const aiResultRef = useRef<any>(null);
   const navigatedRef = useRef(false);
+  const evaluationIdRef = useRef<string | null>(null);
 
   function doNavigate(result: any) {
     if (navigatedRef.current) return;
     navigatedRef.current = true;
     navigation?.navigate('AiDraftResult', {
       imageUri, sampleId, sampleIdentifier, variety, grainCount, session, sessionId,
+      evaluationId:          evaluationIdRef.current,
       aiDraftScore:          result.predicted_asv_score,
       rawConfidence:         result.raw_confidence,
       calibratedCertainty:   result.calibrated_certainty,
@@ -165,7 +167,7 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
         // grain_image_id is nullable in the schema; coerce undefined → null
         // so SQLite never receives an unbound parameter.
         try {
-          await createDraftEvaluation({
+          const evalRecord = await createDraftEvaluation({
             sample_id:            sampleId,
             grain_image_id:       grainImageId ?? null,
             evaluator_id:         firebaseUser.uid,
@@ -180,6 +182,8 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
             anomaly_flags:        answers?.anomalyFlags,
             koh_appearance:       answers?.kohSolution,
           });
+          // Store the evaluation id so doNavigate can forward it
+          evaluationIdRef.current = evalRecord.id;
         } catch (evalErr) {
           // createDraftEvaluation is now idempotent so this branch
           // should only fire for genuine DB errors, not duplicates

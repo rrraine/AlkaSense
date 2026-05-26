@@ -305,6 +305,8 @@ export default function AiDraftResultScreen({
     variety = 'NSIC Rc 222',
     grainCount = '10',
     session = 'Spring Harvest 2026',
+    sessionId,
+    evaluationId,
 
     aiDraftScore = 5,
     rawConfidence = 72,
@@ -352,6 +354,8 @@ export default function AiDraftResultScreen({
       variety,
       grainCount,
       session,
+      sessionId,
+      evaluationId,
       aiDraftScore,
       answers,
     });
@@ -1064,7 +1068,6 @@ const styles = StyleSheet.create({
   obsRow: {
     paddingVertical: 12,
     paddingHorizontal: 4,
-    borderRadius: 0,
   },
 
   obsRowBorder: {

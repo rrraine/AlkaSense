@@ -16,17 +16,15 @@ export async function initDatabase(): Promise<void> {
  * cannot retroactively apply to existing databases.
  */
 async function runMigrations(): Promise<void> {
-  // Migration 001: relax NOT NULL on evaluation_records.grain_image_id.
-  // SQLite cannot ALTER COLUMN, so we use the standard table-rebuild approach.
-  // The guard checks whether the column is still NOT NULL before proceeding.
-  const tableInfo = await db.getAllAsync<{ name: string; notnull: number }>(
+
+  // ── Migration 001: relax NOT NULL on evaluation_records.grain_image_id ──────
+  const evalCols = await db.getAllAsync<{ name: string; notnull: number }>(
     `PRAGMA table_info(evaluation_records)`
   );
-  const col = tableInfo.find((c) => c.name === 'grain_image_id');
-  if (col && col.notnull === 1) {
+  const grainImageCol = evalCols.find((c) => c.name === 'grain_image_id');
+  if (grainImageCol && grainImageCol.notnull === 1) {
     await db.execAsync(`
       PRAGMA foreign_keys = OFF;
-
       CREATE TABLE IF NOT EXISTS evaluation_records_new (
         id                TEXT PRIMARY KEY,
         sample_id         TEXT NOT NULL REFERENCES samples(id),
@@ -34,27 +32,62 @@ async function runMigrations(): Promise<void> {
         evaluator_id      TEXT NOT NULL REFERENCES users(id),
         evaluation_notes  TEXT,
         status            TEXT NOT NULL DEFAULT 'For Evaluation'
-                          CHECK (status IN (
-                            'For Evaluation',
-                            'Draft Generated',
-                            'Confirmed'
-                          )),
+                          CHECK (status IN ('For Evaluation','Draft Generated','Confirmed')),
         created_at        TEXT NOT NULL DEFAULT (datetime('now')),
         evaluated_at      TEXT
       );
-
       INSERT INTO evaluation_records_new
         SELECT id, sample_id, grain_image_id, evaluator_id,
                evaluation_notes, status, created_at, evaluated_at
         FROM evaluation_records;
-
       DROP TABLE evaluation_records;
-
       ALTER TABLE evaluation_records_new RENAME TO evaluation_records;
-
       PRAGMA foreign_keys = ON;
     `);
     console.log('[DB Migration 001] evaluation_records.grain_image_id is now nullable.');
+  }
+
+  // ── Migration 002: replace global UNIQUE on sample_identifier with ──────────
+  //    composite UNIQUE (session_id, sample_identifier) so the same identifier
+  //    can be reused across different sessions / accounts.
+  const sampleIndexes = await db.getAllAsync<{ name: string; unique: number }>(
+    `PRAGMA index_list(samples)`
+  );
+  // SQLite names auto-generated unique indexes as "sqlite_autoindex_<table>_<n>"
+  const hasGlobalUnique = sampleIndexes.some(
+    (idx) => idx.unique === 1 && idx.name.startsWith('sqlite_autoindex_samples')
+  );
+  if (hasGlobalUnique) {
+    await db.execAsync(`
+      PRAGMA foreign_keys = OFF;
+      CREATE TABLE IF NOT EXISTS samples_new (
+        id                  TEXT PRIMARY KEY,
+        session_id          TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        sample_identifier   TEXT NOT NULL,
+        grain_count         INTEGER NOT NULL,
+        gt_class            TEXT NOT NULL DEFAULT 'Null'
+                            CHECK (gt_class IN ('Null','Low GT','Intermediate GT','High GT')),
+        asv_score           INTEGER NOT NULL DEFAULT 0
+                            CHECK (asv_score BETWEEN 0 AND 7),
+        rice_variety        TEXT NOT NULL
+                            CHECK (rice_variety IN (
+                              'NSIC Rc 222','NSIC Rc 160','PSB Rc 18',
+                              'PSB Rc 82','IR64','IR72'
+                            )),
+        status              TEXT NOT NULL DEFAULT 'Pending'
+                            CHECK (status IN ('Confirmed','Image Submitted','Pending')),
+        created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (session_id, sample_identifier)
+      );
+      INSERT INTO samples_new
+        SELECT id, session_id, sample_identifier, grain_count, gt_class,
+               asv_score, rice_variety, status, created_at
+        FROM samples;
+      DROP TABLE samples;
+      ALTER TABLE samples_new RENAME TO samples;
+      PRAGMA foreign_keys = ON;
+    `);
+    console.log('[DB Migration 002] samples.sample_identifier is now unique per session only.');
   }
 }
 
@@ -100,7 +133,7 @@ async function createTables(): Promise<void> {
     CREATE TABLE IF NOT EXISTS samples (
       id                  TEXT PRIMARY KEY,
       session_id          TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      sample_identifier   TEXT NOT NULL UNIQUE,
+      sample_identifier   TEXT NOT NULL,
       grain_count         INTEGER NOT NULL,
       gt_class            TEXT NOT NULL DEFAULT 'Null'
                           CHECK (gt_class IN (
@@ -126,7 +159,8 @@ async function createTables(): Promise<void> {
                             'Image Submitted',
                             'Pending'
                           )),
-      created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (session_id, sample_identifier)
     );
 
     -- Grain images table
@@ -166,7 +200,7 @@ async function createTables(): Promise<void> {
     CREATE TABLE IF NOT EXISTS evaluation_records (
       id                TEXT PRIMARY KEY,
       sample_id         TEXT NOT NULL REFERENCES samples(id),
-      grain_image_id    TEXT REFERENCES grain_images(id),
+      grain_image_id    TEXT NOT NULL REFERENCES grain_images(id),
       evaluator_id      TEXT NOT NULL REFERENCES users(id),
       evaluation_notes  TEXT,
       status            TEXT NOT NULL DEFAULT 'For Evaluation'
