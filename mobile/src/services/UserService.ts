@@ -37,15 +37,15 @@ export async function signUpUser(payload: {
   });
 
   // 3. Register with backend
-  const backendUser = await registerUser(idToken, {
-    firebase_uid: firebaseUser.uid,
-    email: firebaseUser.email,
-    full_name: payload.fullName,
-    role: payload.role,
-    institution: payload.institution,
-  });
+  // const backendUser = await registerUser(idToken, {
+  //   firebase_uid: firebaseUser.uid,
+  //   email: firebaseUser.email,
+  //   full_name: payload.fullName,
+  //   role: payload.role,
+  //   institution: payload.institution,
+  // });
 
-  console.log("BACKEND RESPONSE:", backendUser);
+  // console.log("BACKEND RESPONSE:", backendUser);
 }
 
 // ─────────────────────────────────────────────────────────────
