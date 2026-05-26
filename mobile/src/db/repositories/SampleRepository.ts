@@ -107,6 +107,22 @@ export class SampleRepository {
         payload.rice_variety,
       ]
     );
+    
+    // DEBUG LOG | DELETE AFTERWARDS ---------------------------------
+
+    const inserted = await db.getFirstAsync(
+      `
+      SELECT *
+      FROM samples
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    console.log(
+      "✅ SAMPLE ENTITY SAVED TO SQLITE:",
+      JSON.stringify(inserted, null, 2)
+    );
 
     return await this.getById(id);
   }
