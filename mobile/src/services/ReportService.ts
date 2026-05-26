@@ -15,6 +15,15 @@ const sampleRepo = new SampleRepository();
 const correctionRepo = new CorrectionLogRepository();
 const evaluationRepo = new EvaluationRepository();
 
+function normalizeGTClass(gt: string | null | undefined): 'Low GT' | 'Intermediate GT' | 'High GT' | 'Null' {
+  if (!gt) return 'Null';
+  const v = gt.toLowerCase();
+  if (v.includes('high gt')) return 'High GT';
+  if (v.includes('intermediate gt')) return 'Intermediate GT';
+  if (v.includes('low gt')) return 'Low GT';
+  return 'Null';
+}
+
 /**
  * Generates and persists a session report to SQLite.
  * Business rules:
@@ -125,22 +134,45 @@ export async function getSessionSummaryData(sessionId: string) {
   const corrections = await correctionRepo.getBySession(sessionId);
   const confirmedEvals = await evaluationRepo.getConfirmedEvaluations(sessionId);
 
+  // Build confirmed-evaluation fallback map (for legacy rows where sample
+  // score/gt might not have been mirrored yet).
+  const confirmedBySample = new Map<string, { asv: number; gt: string | null }>();
+  for (const ev of confirmedEvals) {
+    if (!ev?.sample_id) continue;
+    confirmedBySample.set(ev.sample_id, {
+      asv: Number(ev.final_asv_score ?? ev.predicted_asv_score ?? 0),
+      gt: (ev.final_gt_class ?? ev.predicted_gt_class ?? null) as string | null,
+    });
+  }
+
   // Build ASV distribution for chart
   const asvDistribution = Array(7).fill(0);
   for (const sample of samples) {
-    if (sample.asv_score >= 1 && sample.asv_score <= 7) {
-      asvDistribution[sample.asv_score - 1]++;
+    const fallback = confirmedBySample.get(sample.id);
+    const score = sample.asv_score >= 1 && sample.asv_score <= 7
+      ? sample.asv_score
+      : (fallback?.asv ?? 0);
+
+    if (score >= 1 && score <= 7) {
+      asvDistribution[score - 1]++;
     }
   }
 
   // GT distribution for pie chart
   const gtCounts = { 'Low GT': 0, 'Intermediate GT': 0, 'High GT': 0 };
+  let totalForPie = 0;
   for (const sample of samples) {
-    if (sample.gt_class && sample.gt_class !== 'Null') {
-      gtCounts[sample.gt_class as keyof typeof gtCounts]++;
+    const fallback = confirmedBySample.get(sample.id);
+    const normalized = normalizeGTClass(
+      sample.gt_class && sample.gt_class !== 'Null' ? sample.gt_class : fallback?.gt
+    );
+
+    if (normalized !== 'Null') {
+      gtCounts[normalized]++;
+      totalForPie++;
     }
   }
-  const totalForPie = samples.filter((s) => s.gt_class !== 'Null').length;
+
   const gtDistributionPct = Object.fromEntries(
     Object.entries(gtCounts).map(([k, v]) => [
       k,

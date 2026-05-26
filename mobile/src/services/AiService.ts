@@ -1,7 +1,15 @@
 import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
+import {
+  EvaluationRepository,
+  CreateEvaluationPayload,
+  EvaluationRecord,
+} from '../db/repositories/EvaluationRepository';
+import { SampleRepository } from '../db/repositories/SampleRepository';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:8000';
+const evaluationRepo = new EvaluationRepository();
+const sampleRepo = new SampleRepository();
 
 export type ExplainBullet = { label: string; text: string };
 
@@ -132,4 +140,49 @@ export async function requestAIExplainability({
       ],
     };
   }
+}
+
+function mapASVToGTClass(score: number): 'Low GT' | 'Intermediate GT' | 'High GT' {
+  if (score <= 2) return 'High GT';
+  if (score <= 5) return 'Intermediate GT';
+  return 'Low GT';
+}
+
+/**
+ * Idempotent draft creation used by the AI loading flow.
+ */
+export async function createDraftEvaluation(
+  payload: CreateEvaluationPayload
+): Promise<EvaluationRecord> {
+  const existing = await evaluationRepo.getBySample(payload.sample_id);
+  if (existing) {
+    return existing;
+  }
+  return await evaluationRepo.create(payload);
+}
+
+/**
+ * Confirms an AI evaluation and mirrors final score to samples table
+ * so SessionProgress and ASV distribution reflect the official output.
+ */
+export async function confirmEvaluation(payload: {
+  evaluationId: string;
+  sampleId: string;
+  final_asv_score: number;
+  correction_remark?: string;
+}): Promise<void> {
+  if (payload.final_asv_score < 1 || payload.final_asv_score > 7) {
+    throw new Error('ASV score must be between 1 and 7');
+  }
+
+  const gtClass = mapASVToGTClass(payload.final_asv_score);
+
+  await evaluationRepo.confirmEvaluation({
+    evaluationId: payload.evaluationId,
+    final_asv_score: payload.final_asv_score,
+    final_gt_class: gtClass,
+    correction_remark: payload.correction_remark,
+  });
+
+  await sampleRepo.updateScore(payload.sampleId, payload.final_asv_score, gtClass);
 }

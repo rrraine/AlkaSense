@@ -27,6 +27,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
     variety,
     grainCount,
     session,
+    sessionId,
   } = route.params;
 
   function handleSubmit() {
@@ -37,7 +38,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
       variety,
       grainCount,
       session,
-      sessionId: session?.id,
+      sessionId,
     });
   }
 

@@ -17,6 +17,12 @@ import type { GTClass } from '../db/repositories/SampleRepository';
 
 const sampleService = new SampleService();
 
+function getGTClass(score: number): GTClass {
+  if (score <= 2) return 'High GT';
+  if (score <= 5) return 'Intermediate GT';
+  return 'Low GT';
+}
+
 function getGTClassification(score: number): string {
   if (score <= 2) return 'High GT (>74°C)';
   if (score <= 5) return 'Intermediate GT (70–74°C)';
@@ -152,7 +158,7 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
 
       try {
         if (isManual) {
-          const gtClass = getGTClassification(finalScore) as GTClass;
+          const gtClass = getGTClass(finalScore);
           await sampleService.confirmSampleScore({
             sampleId,
             asvScore: finalScore,
@@ -186,7 +192,8 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
   function handleReturn() {
     if (sessionId) {
       // Pop back to SessionProgress so useFocusEffect reloads the sample list
-      navigation.navigate('SessionProgress', { sessionId });
+      // Use replace to force remount and immediate reload of session data
+      navigation.replace('SessionProgress', { sessionId });
     } else {
       navigation.navigate('Dashboard');
     }

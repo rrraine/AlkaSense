@@ -21,14 +21,14 @@ function mapASVToGTClass(
 ): GTClass {
 
   if (score <= 2) {
-    return 'Low GT';
+    return 'High GT';
   }
 
   if (score <= 5) {
     return 'Intermediate GT';
   }
 
-  return 'High GT';
+  return 'Low GT';
 }
 
 export class EvaluationService {

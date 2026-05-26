@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { submitValidatedImage } from '../services/ImageService';
 import { SessionRepository } from '../db/repositories/SessionRepository';
@@ -128,6 +128,7 @@ export default function ValidationResultScreen({ navigation, route }: any) {
   async function handleProceed() {
     if (!resolvedSessionId) {
       console.error('ValidationResultScreen: cannot proceed — sessionId is still unresolved');
+      Alert.alert('Session Error', 'Could not resolve session context. Please go back and try again.');
       return;
     }
     setProceeding(true);
@@ -138,15 +139,20 @@ export default function ValidationResultScreen({ navigation, route }: any) {
         imagePath: imageUri,
         validationStatus: 'Accepted',
       });
+
+      navigation.navigate('ExpertObservation', {
+        imageUri, sampleId, sample_identifier, variety, grainCount, session,
+        sessionId: resolvedSessionId,
+      });
     } catch (err) {
       console.error('ValidationResultScreen persist error:', err);
+      Alert.alert(
+        'Save Failed',
+        'Image was not saved to this session. Please retry submit before proceeding.'
+      );
     } finally {
       setProceeding(false);
     }
-    navigation.navigate('ExpertObservation', {
-      imageUri, sampleId, sample_identifier, variety, grainCount, session,
-      sessionId: resolvedSessionId,
-    });
   }
 
   function handleRecapture() {
