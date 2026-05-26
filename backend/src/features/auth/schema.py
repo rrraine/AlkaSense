@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 
 class UserCreate(BaseModel):
     firebase_uid: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     full_name: str
     role: str
     institution: str
@@ -13,7 +13,7 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     firebase_uid: str
-    email: EmailStr
+    email: Optional[str] = None
     full_name: str
     role: str
     institution: str
