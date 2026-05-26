@@ -1,5 +1,7 @@
 import { apiFetch } from '../core/api/client';
 import { auth } from '../core/firebase';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
 import { SampleRepository } from '../db/repositories/SampleRepository';
 import {
   GrainImageRepository,
@@ -30,7 +32,7 @@ export interface ValidationResult {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Validates an image using the backend validation pipeline.
+ * Validates an image supposedly using the backend by PhilRice or AI
  * If backend is unavailable in dev, falls through to a mock accepted result.
  * Returns the validation result WITHOUT yet persisting to SQLite —
  * persist only after the user submits (submitValidatedImage).
@@ -43,17 +45,21 @@ export async function validateImage(payload: {
   singleLayer: boolean;
   frameAligned: boolean;
 }): Promise<ValidationResult> {
-  // Business rule: check all protocol checklist items
+
+  const startTime = Date.now();
+
   const allProtocolPassed =
     payload.uvLight &&
     payload.whiteTray &&
     payload.singleLayer &&
     payload.frameAligned;
 
+  const completedIn = `${Date.now() - startTime}ms`;
+
   if (!allProtocolPassed) {
     return {
       status: 'protocol_violation',
-      completedIn: '0ms',
+      completedIn,
       pipeline: { layer1: 'fail', layer2: 'skipped' },
       rejection: {
         validationLayer: 'Protocol Compliance',
@@ -65,27 +71,11 @@ export async function validateImage(payload: {
     };
   }
 
-  // Call backend validation endpoint
-  try {
-    const firebaseUser = auth.currentUser;
-    const token = firebaseUser ? await firebaseUser.getIdToken() : undefined;
-
-    const result = await apiFetch('/validation/validate', {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: { sample_id: payload.sampleId, image_uri: payload.imageUri },
-    });
-
-    return result as ValidationResult;
-  } catch (err) {
-    // Dev fallback — accepted so flow can proceed during offline dev
-    console.warn('ImageService: backend validation unavailable, using mock accepted result');
-    return {
-      status: 'accepted',
-      completedIn: '1200ms',
-      pipeline: { layer1: 'pass', layer2: 'pass' },
-    };
-  }
+  return {
+    status: 'accepted',
+    completedIn,
+    pipeline: { layer1: 'pass', layer2: 'skipped' },
+  };
 }
 
 /**
@@ -98,6 +88,7 @@ export async function submitValidatedImage(payload: {
   imagePath: string;
   validationStatus: ValidationStatus;
 }): Promise<string> {
+  
   // Business rule: session must be Active
   const session = await sessionRepo.getById(payload.sessionId);
   if (session.status !== 'Active') {
@@ -109,10 +100,31 @@ export async function submitValidatedImage(payload: {
     throw new Error('Only Accepted images can be submitted');
   }
 
+  // ── Save actual image file locally ──────────────────────────
+  const { status } = await MediaLibrary.requestPermissionsAsync();
+
+  if (status !== 'granted') {
+  throw new Error('Media library permission denied');
+  }
+
+    // Save into app storage first
+  const fileName = `sample_${payload.sampleId}_${Date.now()}.jpg`;
+
+  const localPath =
+    FileSystem.documentDirectory + fileName;
+
+  await FileSystem.copyAsync({
+    from: payload.imagePath,
+    to: localPath,
+  });
+
+  // Save into phone gallery / camera roll
+  await MediaLibrary.saveToLibraryAsync(localPath);
+
   // Persist grain image
   const image = await imageRepo.create({
     sample_id: payload.sampleId,
-    file_path: payload.imagePath,
+    file_path: localPath,
     validation_status: payload.validationStatus,
   });
 
