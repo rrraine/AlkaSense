@@ -100,31 +100,31 @@ export async function submitValidatedImage(payload: {
     throw new Error('Only Accepted images can be submitted');
   }
 
-  // ── Save actual image file locally ──────────────────────────
-  const { status } = await MediaLibrary.requestPermissionsAsync();
+  // // ── Save actual image file locally ──────────────────────────
+  // const { status } = await MediaLibrary.requestPermissionsAsync();
 
-  if (status !== 'granted') {
-  throw new Error('Media library permission denied');
-  }
+  // if (status !== 'granted') {
+  // throw new Error('Media library permission denied');
+  // }
 
-    // Save into app storage first
-  const fileName = `sample_${payload.sampleId}_${Date.now()}.jpg`;
+  //   // Save into app storage first
+  // const fileName = `sample_${payload.sampleId}_${Date.now()}.jpg`;
 
-  const localPath =
-    FileSystem.documentDirectory + fileName;
+  // const localPath =
+  //   FileSystem.documentDirectory + fileName;
 
-  await FileSystem.copyAsync({
-    from: payload.imagePath,
-    to: localPath,
-  });
+  // await FileSystem.copyAsync({
+  //   from: payload.imagePath,
+  //   to: localPath,
+  // });
 
-  // Save into phone gallery / camera roll
-  await MediaLibrary.saveToLibraryAsync(localPath);
+  // // Save into phone gallery / camera roll
+  // await MediaLibrary.saveToLibraryAsync(localPath);
 
   // Persist grain image
   const image = await imageRepo.create({
     sample_id: payload.sampleId,
-    file_path: localPath,
+    file_path: payload.imagePath,
     validation_status: payload.validationStatus,
   });
 

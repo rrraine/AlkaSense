@@ -49,6 +49,8 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
 
     setIsSubmitting(true);
     try {
+
+      // first layer validation
       const result = await validateImage({
         sampleId,
         imageUri,
@@ -67,9 +69,6 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
         return;
       }
 
-      // HERE!
-      console.log("Session: ", sessionId);
-
       await submitValidatedImage({
         sampleId,
         sessionId,
@@ -77,6 +76,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
         validationStatus: 'Accepted',
       });
 
+      // at this point, both layers are already validated before navigating to the ValidationResult
       navigation.navigate('ValidationResult', {
         result,
         imageUri,
