@@ -47,14 +47,28 @@ function StatusBadge({ status }: { status: string }) {
   return <View style={badgeStyle}><Text style={textStyle}>{status}</Text></View>;
 }
 
-function SampleCard({ sample, navigation, sessionId }: { sample: Sample; navigation: any; sessionId: string }) {
+function SampleCard({ sample, navigation, sessionId, sessionName }: { sample: Sample; navigation: any; sessionId: string; sessionName: string }) {
   function handleNavigation() {
     if (sample.status === 'Pending') {
-      navigation.navigate('ImageCapture', { sampleId: sample.id, variety: sample.rice_variety, sessionId });
+      navigation.navigate('ImageCapture', {
+        sampleId: sample.id,
+        sample_identifier: sample.sample_identifier,
+        variety: sample.rice_variety,
+        grainCount: String(sample.grain_count),
+        session: sessionName,
+        sessionId,
+      });
       return;
     }
     if (sample.status === 'Image Submitted') {
-      navigation.navigate('ExpertObservation', { sampleId: sample.id, variety: sample.rice_variety, sessionId });
+      navigation.navigate('ExpertObservation', {
+        sampleId: sample.id,
+        sample_identifier: sample.sample_identifier,
+        variety: sample.rice_variety,
+        grainCount: String(sample.grain_count),
+        session: sessionName,
+        sessionId,
+      });
       return;
     }
     navigation.navigate('SamplePreview', { id: sample.id, variety: sample.rice_variety, status: sample.status, asv: sample.asv_score });
@@ -226,7 +240,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
             <Text style={styles.listTitle}>Sample Status List ({progress.total})</Text>
 
             {samples.map((sample) => (
-              <SampleCard key={sample.id} sample={sample} navigation={navigation} sessionId={sessionId} />
+              <SampleCard key={sample.id} sample={sample} navigation={navigation} sessionId={sessionId} sessionName={session?.name ?? ''} />
             ))}
 
             <View style={styles.actionRow}>

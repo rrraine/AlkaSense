@@ -43,6 +43,18 @@ export async function createSession(
   const user = auth.currentUser;
   if (!user) throw new SessionError('Not authenticated', 'activeSession');
 
+  // Guard: the user row must exist in SQLite before any insert that
+  // references users(id) via a FOREIGN KEY. If it's missing (e.g. the DB
+  // was wiped after a schema change), surface a clear message instead of
+  // crashing with "FOREIGN KEY constraint failed".
+  const localUser = await getUserById(user.uid);
+  if (!localUser) {
+    throw new SessionError(
+      'Your user profile was not found locally. Please log out and log back in to restore it.',
+      'activeSession'
+    );
+  }
+
   const existingActive = await sessionRepository.getActiveSession(user.uid);
   if (existingActive) {
     throw new SessionError('Evaluator already has an active session', 'activeSession');
@@ -61,7 +73,6 @@ export async function createSession(
     throw new SessionError('Batch identifier already exists', 'batchIdentifier');
   }
 
-  // Validate numeric fields > 0
   if (payload.koh_concentration <= 0) {
     throw new SessionError('KOH concentration must be positive', 'kohConcentration');
   }

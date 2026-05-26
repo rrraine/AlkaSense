@@ -41,8 +41,9 @@ function mapASVToGTClass(score: number): string {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Calls the AI inference backend (Ivan & Lori's module) to generate a draft ASV score.
- * Falls back to a mock result in development if backend is unreachable.
+ * Calls the AI inference backend to generate a draft ASV score.
+ * Enforces a hard timeout so the loading screen never hangs indefinitely.
+ * Falls back to a mock result if the backend is unreachable or too slow.
  */
 export async function requestAIDraft(payload: {
   sampleId: string;
@@ -56,11 +57,14 @@ export async function requestAIDraft(payload: {
     kohSolution?: string;
   };
 }): Promise<AIDraftResult> {
+  const AI_TIMEOUT_MS = 8000; // fail fast after 8 s
+
   try {
     const firebaseUser = auth.currentUser;
     const token = firebaseUser ? await firebaseUser.getIdToken() : undefined;
 
-    const result = await apiFetch('/ai/predict', {
+    // Race the backend call against a timeout so fetch never hangs the screen
+    const fetchPromise = apiFetch('/ai/predict', {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: {
@@ -70,10 +74,15 @@ export async function requestAIDraft(payload: {
       },
     });
 
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('AI request timed out')), AI_TIMEOUT_MS)
+    );
+
+    const result = await Promise.race([fetchPromise, timeoutPromise]);
     return result as AIDraftResult;
+
   } catch (err) {
-    console.warn('AIService: backend unavailable, returning mock AI draft');
-    // Mock draft for offline / pre-integration development
+    console.warn('AIService: backend unavailable or timed out, returning mock AI draft:', err);
     return {
       predicted_asv_score: 5,
       predicted_gt_class: 'Intermediate GT',
@@ -88,21 +97,24 @@ export async function requestAIDraft(payload: {
 
 /**
  * Creates a draft evaluation record in SQLite after AI analysis.
- * Business rule: no duplicate evaluation per sample.
+ * Safe to call multiple times for the same sample — returns the existing
+ * record if one already exists (idempotent upsert behaviour) so that
+ * retrying the AI loading screen never crashes.
  */
 export async function createDraftEvaluation(
   payload: CreateEvaluationPayload
 ): Promise<EvaluationRecord> {
   const existing = await evaluationRepo.getBySample(payload.sample_id);
-  if (existing) throw new Error('Evaluation already exists for this sample');
-
+  if (existing) {
+    console.warn('Draft evaluation already exists for this sample — returning existing record.');
+    return existing;
+  }
   return await evaluationRepo.create(payload);
 }
 
 /**
  * Confirms an evaluation — persists final ASV score to both
  * evaluation_records and samples tables atomically.
- * Business rules enforced here.
  */
 export async function confirmEvaluation(payload: {
   evaluationId: string;
@@ -110,12 +122,10 @@ export async function confirmEvaluation(payload: {
   final_asv_score: number;
   correction_remark?: string;
 }): Promise<void> {
-  // Business rule: ASV score must be 1-7
   if (payload.final_asv_score < 1 || payload.final_asv_score > 7) {
     throw new Error('ASV score must be between 1 and 7');
   }
 
-  // Business rule: draft must exist before confirming
   const evaluation = await evaluationRepo.getById(payload.evaluationId);
   if (!evaluation) throw new Error('Cannot confirm: draft evaluation not found');
   if (evaluation.status === 'Confirmed') throw new Error('Evaluation is already confirmed');

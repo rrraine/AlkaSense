@@ -125,6 +125,7 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
     variety,
     grainCount,
     session,
+    sessionId,
     // Score source — exactly one of these two should be present:
     manualScore,   // present when coming from ManualScoreScreen
     aiDraftScore,  // present when coming from AIDraftScreen / ConfirmScore AI path
@@ -183,7 +184,12 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
   const hasAiWarnings    = hasDeviation || hasConflict;
 
   function handleReturn() {
-    navigation.navigate('Dashboard', { session });
+    if (sessionId) {
+      // Pop back to SessionProgress so useFocusEffect reloads the sample list
+      navigation.navigate('SessionProgress', { sessionId });
+    } else {
+      navigation.navigate('Dashboard');
+    }
   }
 
   return (
@@ -280,7 +286,7 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
       {/* ── FOOTER ─────────────────────────────────────────────────────────── */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.returnBtn} onPress={handleReturn}>
-          <Text style={styles.returnBtnText}>Return to Session Dashboard</Text>
+          <Text style={styles.returnBtnText}>Return</Text>
         </TouchableOpacity>
       </View>
 

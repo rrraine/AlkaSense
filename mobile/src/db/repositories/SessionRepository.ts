@@ -101,7 +101,9 @@ export class SessionRepository {
       ]
     );
 
-    return await this.getById(id);
+    const session = await this.getById(id);
+    console.log('✅ SESSION SAVED TO SQLITE:', JSON.stringify(session, null, 2));
+    return session;
   }
 
   // ───────────────────────────────────────────────────────────
