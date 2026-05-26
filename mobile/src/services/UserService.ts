@@ -73,30 +73,30 @@ export async function signInUser(payload: {
   // 3. SQLite cache miss (e.g. DB was reset/wiped after a schema change).
   //    Fetch the profile from the backend and re-seed SQLite so every
   //    FK-dependent table (sessions, audit_log, etc.) can reference the user.
-  if (!localUser) {
-    console.warn("SQLite miss — fetching user profile from backend...");
+  // if (!localUser) {
+  //   console.warn("SQLite miss — fetching user profile from backend...");
 
-    const backendUser = await fetchMe(idToken);
+  //   const backendUser = await fetchMe(idToken);
 
-    if (backendUser) {
-      await insertUser({
-        firebase_uid: backendUser.firebase_uid,
-        email: backendUser.email,
-        full_name: backendUser.full_name,
-        role: backendUser.role,
-        institution: backendUser.institution,
-      });
+  //   if (backendUser) {
+  //     await insertUser({
+  //       firebase_uid: backendUser.firebase_uid,
+  //       email: backendUser.email,
+  //       full_name: backendUser.full_name,
+  //       role: backendUser.role,
+  //       institution: backendUser.institution,
+  //     });
 
-      localUser = await getUserById(firebaseUser.uid);
-      console.log("LOCAL USER (re-seeded from backend):", localUser);
-    } else {
-      // Backend doesn't have the user either — account may not be fully
-      // registered. Surface a clear error instead of a silent null.
-      throw new Error(
-        "User profile not found. Please contact your administrator or re-register."
-      );
-    }
-  }
+  //     localUser = await getUserById(firebaseUser.uid);
+  //     console.log("LOCAL USER (re-seeded from backend):", localUser);
+  //   } else {
+  //     // Backend doesn't have the user either — account may not be fully
+  //     // registered. Surface a clear error instead of a silent null.
+  //     throw new Error(
+  //       "User profile not found. Please contact your administrator or re-register."
+  //     );
+  //   }
+  // }
 
   return { firebaseUser, idToken, localUser };
 }
