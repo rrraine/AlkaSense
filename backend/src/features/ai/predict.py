@@ -86,6 +86,7 @@ async def predict(
             "hasConfidenceWarning": has_confidence_warning,
             "hasObservationConflict": has_observation_conflict,
             "conflictDimensions": conflict_dimensions,
+            "all_scores": [round(float(s), 6) for s in output],
             "overlay_file_path": None,
         })
 

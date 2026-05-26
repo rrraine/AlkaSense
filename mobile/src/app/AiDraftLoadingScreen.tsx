@@ -110,6 +110,7 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
       hasConfidenceWarning:  result.hasConfidenceWarning,
       hasObservationConflict: result.hasObservationConflict,
       conflictDimensions:    result.conflictDimensions,
+      allScores:             result.all_scores ?? [],
       answers,
     });
   }

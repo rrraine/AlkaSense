@@ -598,7 +598,9 @@ export default function AiDraftResultScreen({
       grainCount,
       session,
       aiDraftScore,
+      rawConfidence,
       calibratedCertainty,
+      allScores: route?.params?.allScores ?? [],
     })
   }
   activeOpacity={0.85}
