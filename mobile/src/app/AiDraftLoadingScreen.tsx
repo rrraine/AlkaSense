@@ -161,11 +161,13 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
         // Store the result so the navigation timer can use it
         aiResultRef.current = aiResult;
 
-        // Persist to SQLite (idempotent — safe on retry)
+        // Persist to SQLite (idempotent — safe on retry).
+        // grain_image_id is nullable in the schema; coerce undefined → null
+        // so SQLite never receives an unbound parameter.
         try {
           await createDraftEvaluation({
             sample_id:            sampleId,
-            grain_image_id:       grainImageId,
+            grain_image_id:       grainImageId ?? null,
             evaluator_id:         firebaseUser.uid,
             predicted_asv_score:  aiResult.predicted_asv_score,
             predicted_gt_class:   aiResult.predicted_gt_class,

@@ -8,6 +8,54 @@ export async function initDatabase(): Promise<void> {
     PRAGMA foreign_keys = ON;
   `);
   await createTables();
+  await runMigrations();
+}
+
+/**
+ * Idempotent migrations for schema changes that CREATE TABLE IF NOT EXISTS
+ * cannot retroactively apply to existing databases.
+ */
+async function runMigrations(): Promise<void> {
+  // Migration 001: relax NOT NULL on evaluation_records.grain_image_id.
+  // SQLite cannot ALTER COLUMN, so we use the standard table-rebuild approach.
+  // The guard checks whether the column is still NOT NULL before proceeding.
+  const tableInfo = await db.getAllAsync<{ name: string; notnull: number }>(
+    `PRAGMA table_info(evaluation_records)`
+  );
+  const col = tableInfo.find((c) => c.name === 'grain_image_id');
+  if (col && col.notnull === 1) {
+    await db.execAsync(`
+      PRAGMA foreign_keys = OFF;
+
+      CREATE TABLE IF NOT EXISTS evaluation_records_new (
+        id                TEXT PRIMARY KEY,
+        sample_id         TEXT NOT NULL REFERENCES samples(id),
+        grain_image_id    TEXT REFERENCES grain_images(id),
+        evaluator_id      TEXT NOT NULL REFERENCES users(id),
+        evaluation_notes  TEXT,
+        status            TEXT NOT NULL DEFAULT 'For Evaluation'
+                          CHECK (status IN (
+                            'For Evaluation',
+                            'Draft Generated',
+                            'Confirmed'
+                          )),
+        created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+        evaluated_at      TEXT
+      );
+
+      INSERT INTO evaluation_records_new
+        SELECT id, sample_id, grain_image_id, evaluator_id,
+               evaluation_notes, status, created_at, evaluated_at
+        FROM evaluation_records;
+
+      DROP TABLE evaluation_records;
+
+      ALTER TABLE evaluation_records_new RENAME TO evaluation_records;
+
+      PRAGMA foreign_keys = ON;
+    `);
+    console.log('[DB Migration 001] evaluation_records.grain_image_id is now nullable.');
+  }
 }
 
 async function createTables(): Promise<void> {
@@ -118,7 +166,7 @@ async function createTables(): Promise<void> {
     CREATE TABLE IF NOT EXISTS evaluation_records (
       id                TEXT PRIMARY KEY,
       sample_id         TEXT NOT NULL REFERENCES samples(id),
-      grain_image_id    TEXT NOT NULL REFERENCES grain_images(id),
+      grain_image_id    TEXT REFERENCES grain_images(id),
       evaluator_id      TEXT NOT NULL REFERENCES users(id),
       evaluation_notes  TEXT,
       status            TEXT NOT NULL DEFAULT 'For Evaluation'
