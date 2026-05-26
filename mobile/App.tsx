@@ -20,11 +20,11 @@ import ExpertObservationScreen from './src/modules/module3_evaluation/screens/Ex
 import ManualScoreScreen from './src/app/ManualScoreScreen';
 import ScoreConfirmedScreen from './src/modules/module3_evaluation/screens/ScoreConfirmedScreen';
 import SamplePreviewScreen from './src/app/SamplePreviewScreen';
-import ScoreCorrectionScreen from './src/modules/module3_evaluation/screens/ScoreCorrectionScreen';
-import CorrectionLogScreen from './src/modules/module3_evaluation/screens/CorrectionLogScreen';
-import ReferenceLibraryScreen from './src/app/ReferenceLibraryScreen';
-import BatchSummaryScreen from './src/app/BatchSummaryScreen';
-import UploadReportScreen from './src/app/UploadReportScreen';
+import ScoreCorrectionScreen from './src/modules/module4_reporting/screens/ScoreCorrectionScreen';
+import CorrectionLogScreen from './src/modules/module4_reporting/screens/CorrectionLogScreen';
+import ReferenceLibraryScreen from './src/modules/module4_reporting/screens/ReferenceLibraryScreen';
+import BatchSummaryScreen from './src/modules/module4_reporting/screens/BatchSummaryScreen';
+import UploadReportScreen from './src/modules/module4_reporting/screens/UploadReportScreen';
 import AiRequestScreen from './src/modules/module3_evaluation/screens/AiRequestScreen';
 import AiDraftLoadingScreen from './src/modules/module3_evaluation/screens/AiDraftLoadingScreen';
 import AiDraftResultScreen from './src/modules/module3_evaluation/screens/AiDraftResultScreen';
