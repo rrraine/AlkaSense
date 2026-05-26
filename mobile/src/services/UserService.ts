@@ -36,7 +36,7 @@ export async function signUpUser(payload: {
     institution: payload.institution,
   });
 
-  // 3. Register with backend
+  // 3. Send to backend
   // const backendUser = await registerUser(idToken, {
   //   firebase_uid: firebaseUser.uid,
   //   email: firebaseUser.email,
