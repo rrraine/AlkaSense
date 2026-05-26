@@ -4,7 +4,7 @@ import { getActiveSessions } from '../modules/module1_session/services/SessionSe
 type SessionStore = {
   activeSessionId: string | null;
   setActiveSession: (id: string | null) => void;
-  restoreActiveSession: () => Promise<void>;
+  restoreActiveSession: (evaluatorId: string) => Promise<void>;
 };
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -12,9 +12,9 @@ export const useSessionStore = create<SessionStore>((set) => ({
 
   setActiveSession: (id) => set({ activeSessionId: id }),
 
-  // Called once after initDatabase() on app start — restores ACTIVE session from SQLite
-  restoreActiveSession: async () => {
-    const sessions = await getActiveSessions();
+  // Called from DashboardScreen on focus after auth is known
+  restoreActiveSession: async (evaluatorId: string) => {
+    const sessions = await getActiveSessions(evaluatorId);
     set({ activeSessionId: sessions[0]?.id ?? null });
   },
 }));

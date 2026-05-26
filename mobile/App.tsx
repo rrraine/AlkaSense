@@ -6,7 +6,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { initDatabase } from './src/db/database';
 import { attachInterceptors } from './src/api/interceptors';
 import { AuthProvider, useAuthContext } from './src/core/AuthContext';
-import { useSessionStore } from './src/store/sessionStore';
 
 import LoginScreen from './src/app/LoginScreen';
 import SignUpScreen from './src/app/SignUpScreen';
@@ -14,9 +13,9 @@ import DashboardScreen from './src/modules/module1_session/screens/DashboardScre
 import CreateSessionScreen from './src/modules/module1_session/screens/CreateSessionScreen';
 import SessionProgressScreen from './src/modules/module1_session/screens/SessionProgressScreen';
 import RegisterSampleScreen from './src/modules/module1_session/screens/RegisterSampleScreen';
-import ImageCaptureScreen from './src/app/ImageCaptureScreen';
-import ImagePreviewScreen from './src/app/ImagePreviewScreen';
-import ValidationResultScreen from './src/app/ValidationResultScreen';
+import ImageCaptureScreen from './src/modules/module2_image/screens/ImageCaptureScreen';
+import ImagePreviewScreen from './src/modules/module2_image/screens/ImagePreviewScreen';
+import ValidationResultScreen from './src/modules/module2_image/screens/ValidationResultScreen';
 import ExpertObservationScreen from './src/app/ExpertObservationScreen';
 import ManualScoreScreen from './src/app/ManualScoreScreen';
 import ScoreConfirmedScreen from './src/app/ScoreConfirmedScreen';
@@ -84,9 +83,7 @@ function AppNavigator() {
 export default function App() {
   useEffect(() => {
     attachInterceptors();
-    initDatabase()
-      .then(() => useSessionStore.getState().restoreActiveSession())
-      .catch((e: any) => console.error('DB init failed:', e.message));
+    initDatabase().catch((e: any) => console.error('DB init failed:', e.message));
   }, []);
 
   return (

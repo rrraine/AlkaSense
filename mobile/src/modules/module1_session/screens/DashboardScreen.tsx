@@ -4,6 +4,8 @@ import { auth } from "../../../core/firebase";
 import { useFocusEffect } from "@react-navigation/native";
 import { getAllSessions } from "../services/SessionService";
 import { SessionRecord } from "../../../shared/types/session.types";
+import { useAuthContext } from "../../../core/AuthContext";
+import { useSessionStore } from "../../../store/sessionStore";
 import {
   View,
   Text,
@@ -18,13 +20,17 @@ const GREEN = "#008236";
 const GREEN_DARK = "#006228";
 
 export default function DashboardScreen({ navigation }: any) {
+  const { user } = useAuthContext();
+  const restoreActiveSession = useSessionStore((s) => s.restoreActiveSession);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [search, setSearch] = useState("");
 
   useFocusEffect(
     useCallback(() => {
-      getAllSessions().then(setSessions).catch(() => {});
-    }, [])
+      if (!user?.uid) return;
+      getAllSessions(user.uid).then(setSessions).catch(() => {});
+      restoreActiveSession(user.uid);
+    }, [user?.uid])
   );
 
   const hasActiveSession = sessions.some((s) => s.status === "ACTIVE");

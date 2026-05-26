@@ -32,6 +32,12 @@ export async function initDatabase(): Promise<void> {
     `);
   }
 
+  // One-time migration: grain_images table missing 'submission_status' column — drop and recreate
+  const imgCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(grain_images)`);
+  if (imgCols.length > 0 && !imgCols.some((c) => c.name === 'submission_status')) {
+    await db.execAsync(`DROP TABLE IF EXISTS grain_images;`);
+  }
+
   await createTables();
   await createTargetSchemaTables();
 }
@@ -65,11 +71,14 @@ async function createTables(): Promise<void> {
 
     -- Grain images table
     CREATE TABLE IF NOT EXISTS grain_images (
-      id          TEXT PRIMARY KEY,
-      sample_id   TEXT NOT NULL REFERENCES samples(id) ON DELETE CASCADE,
-      image_path  TEXT NOT NULL,
-      image_type  TEXT NOT NULL CHECK (image_type IN ('raw', 'heatmap', 'annotated')),
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id                   TEXT PRIMARY KEY,
+      sample_id            TEXT NOT NULL REFERENCES samples(id) ON DELETE CASCADE,
+      image_path           TEXT NOT NULL,
+      submission_status    TEXT NOT NULL DEFAULT 'SUBMITTED',
+      validation_status    TEXT CHECK (validation_status IN ('ACCEPTED', 'PROTOCOL_VIOLATION', 'QUALITY_FAILURE')),
+      rejection_layer      TEXT,
+      rejection_reason     TEXT,
+      validation_timestamp TEXT
     );
 
     -- Correction log table

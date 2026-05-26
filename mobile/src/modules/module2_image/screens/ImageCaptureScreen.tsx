@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,11 @@ import {
 } from 'react-native';
 import { useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import Camera, { CameraHandle } from '../components/camera';
+import Camera, { CameraHandle } from '../../../components/camera';
+import { getSampleById } from '../../module1_session/services/SampleService';
+import { getSessionById } from '../../module1_session/services/SessionService';
+import { SampleRecord } from '../../../shared/types/sample.types';
+import { SessionRecord } from '../../../shared/types/session.types';
 
 const GREEN = '#008236';
 
@@ -21,14 +25,23 @@ const GUIDELINES = [
 ];
 
 export default function ImageCaptureScreen({ navigation, route }: any) {
-  const sampleId = route?.params?.sampleId ?? 'S003';
-  const variety = route?.params?.variety ?? 'NSIC Rc 222';
-  const grainCount = route?.params?.grainCount ?? '10';
-  const session = route?.params?.session ?? 'Spring Harvest 2026';
+  const sampleId: string = route?.params?.sampleId ?? '';
+
+  const [sample, setSample] = useState<SampleRecord | null>(null);
+  const [session, setSession] = useState<SessionRecord | null>(null);
 
   const cameraRef = useRef<CameraHandle>(null);
-
   const [permission, requestPermission] = useCameraPermissions();
+
+  useEffect(() => {
+    if (!sampleId) return;
+    getSampleById(sampleId).then((s) => {
+      setSample(s);
+      if (s?.session_id) {
+        getSessionById(s.session_id).then(setSession).catch(() => {});
+      }
+    }).catch(() => {});
+  }, [sampleId]);
 
   async function handleCapture() {
     if (!permission?.granted) {
@@ -46,13 +59,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
     const photo = await cameraRef.current?.takePicture();
 
     if (photo?.uri) {
-      navigation.navigate('ImagePreview', {
-        imageUri: photo.uri,
-        sampleId,
-        variety,
-        grainCount,
-        session,
-      });
+      navigation.navigate('ImagePreview', { imageUri: photo.uri, sampleId });
     }
   }
 
@@ -65,13 +72,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      navigation.navigate('ImagePreview', {
-        imageUri: result.assets[0].uri,
-        sampleId,
-        variety,
-        grainCount,
-        session,
-      });
+      navigation.navigate('ImagePreview', { imageUri: result.assets[0].uri, sampleId });
     }
   }
 
@@ -93,11 +94,11 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
       {/* INFO */}
       <View style={styles.infoBanner}>
         <Text style={styles.infoLine1}>
-          {sampleId} • {variety} • {grainCount} grains
+          {sample?.sample_identifier ?? sampleId}
+          {sample ? ` • ${sample.rice_variety} • ${sample.grain_count} grains` : ''}
         </Text>
-
         <Text style={styles.infoLine2}>
-          Session: {session}
+          Session: {session?.name ?? '—'}
         </Text>
       </View>
 
@@ -109,7 +110,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
 
           <View style={styles.pill}>
             <Image
-              source={require('../../assets/lightingIcon.png')}
+              source={require('../../../../assets/lightingIcon.png')}
               style={styles.pillIcon}
             />
             <Text style={styles.pillText}>
@@ -119,7 +120,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
 
           <View style={styles.pill}>
             <Image
-              source={require('../../assets/distanceIcon.png')}
+              source={require('../../../../assets/distanceIcon.png')}
               style={styles.pillIcon}
             />
             <Text style={styles.pillText}>
@@ -143,7 +144,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
               style={styles.placeholderOverlay}
             >
               <Image
-                source={require('../../assets/cameraIcon.png')}
+                source={require('../../../../assets/cameraIcon.png')}
                 style={styles.cameraIconImage}
               />
 

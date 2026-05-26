@@ -1,11 +1,11 @@
 import { getDatabase } from '../../../db/database';
 import { SessionPayload, SessionRecord } from '../../../shared/types/session.types';
 
-export async function checkNameUnique(name: string): Promise<boolean> {
+export async function checkNameUnique(name: string, evaluatorId: string): Promise<boolean> {
   const db = await getDatabase();
   const result = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM sessions WHERE name = ?',
-    [name]
+    'SELECT COUNT(*) as count FROM sessions WHERE name = ? AND evaluator_id = ?',
+    [name, evaluatorId]
   );
   return (result?.count ?? 0) === 0;
 }
@@ -37,10 +37,11 @@ export async function submitSessionCreation(payload: SessionPayload): Promise<Se
   return row;
 }
 
-export async function getActiveSessions(): Promise<SessionRecord[]> {
+export async function getActiveSessions(evaluatorId: string): Promise<SessionRecord[]> {
   const db = await getDatabase();
   return db.getAllAsync<SessionRecord>(
-    "SELECT * FROM sessions WHERE status = 'ACTIVE' ORDER BY rowid DESC"
+    "SELECT * FROM sessions WHERE status = 'ACTIVE' AND evaluator_id = ? ORDER BY rowid DESC",
+    [evaluatorId]
   );
 }
 
@@ -49,10 +50,11 @@ export async function getSessionById(id: string): Promise<SessionRecord | null> 
   return db.getFirstAsync<SessionRecord>('SELECT * FROM sessions WHERE id = ?', [id]);
 }
 
-export async function getAllSessions(): Promise<SessionRecord[]> {
+export async function getAllSessions(evaluatorId: string): Promise<SessionRecord[]> {
   const db = await getDatabase();
   return db.getAllAsync<SessionRecord>(
-    'SELECT * FROM sessions ORDER BY rowid DESC'
+    'SELECT * FROM sessions WHERE evaluator_id = ? ORDER BY rowid DESC',
+    [evaluatorId]
   );
 }
 

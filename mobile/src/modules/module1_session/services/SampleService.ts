@@ -38,6 +38,11 @@ export async function submitSampleRegistration(payload: SamplePayload): Promise<
   return row;
 }
 
+export async function getSampleById(id: string): Promise<SampleRecord | null> {
+  const db = await getDatabase();
+  return db.getFirstAsync<SampleRecord>('SELECT * FROM samples WHERE id = ?', [id]);
+}
+
 export async function getSamplesBySession(sessionId: string): Promise<SampleRecord[]> {
   const db = await getDatabase();
   return db.getAllAsync<SampleRecord>(

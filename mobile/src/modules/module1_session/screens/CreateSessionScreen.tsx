@@ -49,12 +49,13 @@ export default function CreateSessionScreen({ navigation }: any) {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // FR-M1-10: Check for active session on mount
+  // FR-M1-10: Check for active session on mount, scoped to current evaluator
   useEffect(() => {
-    getActiveSessions()
+    if (!user?.uid) return;
+    getActiveSessions(user.uid)
       .then((sessions) => setHasActiveSession(sessions.length > 0))
       .catch(() => {});
-  }, []);
+  }, [user?.uid]);
 
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -92,8 +93,8 @@ export default function CreateSessionScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      // FR-M1-05: Duplicate session name check
-      const nameUnique = await checkNameUnique(form.sessionName.trim());
+      // FR-M1-05: Duplicate session name check, scoped to current evaluator
+      const nameUnique = await checkNameUnique(form.sessionName.trim(), user?.uid ?? '');
       if (!nameUnique) {
         setErrors({
           sessionName:
