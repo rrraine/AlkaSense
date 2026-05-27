@@ -50,6 +50,21 @@ export async function requestAIDraft({
   };
 }) {
   try {
+    if (!imageUri) {
+      console.warn('requestAIDraft called without imageUri, using mock');
+      return {
+        predicted_asv_score: 5,
+        predicted_gt_class: 'Intermediate GT',
+        raw_confidence: 72,
+        calibrated_certainty: 58,
+        hasConfidenceWarning: true,
+        hasObservationConflict: false,
+        conflictDimensions: [],
+        all_scores: [0.02, 0.03, 0.05, 0.10, 0.60, 0.15, 0.05],
+        overlay_file_path: null,
+      };
+    }
+
     // Build multipart form
     const formData = new FormData();
 
