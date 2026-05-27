@@ -25,7 +25,6 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
   const variety = route?.params?.variety ?? 'NSIC Rc 222';
   const grainCount = route?.params?.grainCount ?? '10';
   const session = route?.params?.session ?? 'Spring Harvest 2026';
-  const sessionId = route?.params?.sessionId;
   const sample_identifier = route?.params?.sample_identifier ?? 'SMP-2026-001';
   const sessionId = route?.params?.sessionId;
 
