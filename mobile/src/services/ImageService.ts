@@ -19,7 +19,7 @@ const rejectionLogRepo = new RejectionLogRepository();
 // ─────────────────────────────────────────────────────────────
 // Dev toggle — set to true to skip the real API call
 // ─────────────────────────────────────────────────────────────
-const DEV_MOCK_LAYER2 = true; // auto-true in dev, auto-false in production builds
+const DEV_MOCK_LAYER2 = false; // auto-true in dev, auto-false in production builds
 // value: false | true | __DEV__
 // true = use mock layer
 // false = enable API
@@ -180,6 +180,9 @@ async function runLayer2(imageUri: string): Promise<ValidationResult | null> {
     const errorBody = await response.json();
     console.warn('Layer 2 Gemini error:', JSON.stringify(errorBody, null, 2));
     return null;
+  }
+  else {
+      console.log("✅ Successfully pipelined to Gemini API");
   }
 
   const data = await response.json();
