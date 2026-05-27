@@ -9,7 +9,11 @@ import {
   Modal,
   StatusBar,
   Image,
+  ActivityIndicator,
 } from 'react-native';
+import { useAuthContext } from '../../../core/AuthContext';
+import { submitCorrection } from '../services/ScoreCorrectionService';
+import type { ASVScore } from '../../../shared/types/scoring.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -26,14 +30,6 @@ function getGTClassification(asv: number): string {
   return 'Low GT (<70°C)';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock auth — swap this with real auth context/hook when backend is ready.
-// Set isCertifiedEvaluator = false to demo the Access Denied modal.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const MOCK_USER = {
-  isCertifiedEvaluator: true, // ← toggle for demo
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -183,38 +179,57 @@ function ConfirmCorrectionModal({
 
 export default function ScoreCorrectionScreen({ navigation, route }: any) {
   const {
-    sampleId   = 'S003',
-    variety    = 'NSIC Rc 222',
-    grainCount = '10 grains',
-    session    = 'Spring Harvest 2026',
-    confirmedBy = 'Dr. M. Santos',
-    confirmedDate = '5/16/2026, 2:05 PM',
-    originalASV = 4,
+    sampleId        = 'S003',
+    variety         = 'NSIC Rc 222',
+    grainCount      = '10 grains',
+    session         = 'Spring Harvest 2026',
+    sessionId       = '',
+    confirmedScoreId = '',
+    confirmedBy     = 'Dr. M. Santos',
+    confirmedDate   = '5/16/2026, 2:05 PM',
+    originalASV     = 4,
     imageUri,
   } = route?.params ?? {};
 
-  const [finalASV, setFinalASV] = useState<number>(originalASV);
-  const [remark, setRemark]     = useState('');
-  const [showAccessDenied, setShowAccessDenied]   = useState(false);
-  const [showConfirmModal, setShowConfirmModal]   = useState(false);
+  const { user, role } = useAuthContext();
+  const isCertifiedEvaluator = role === 'certified_evaluator' || role === 'admin';
 
-  // The score has actually changed AND a remark has been provided
-  const hasChange       = finalASV !== originalASV;
-  const remarkFilled    = remark.trim().length > 0;
-  const canSubmit       = hasChange && remarkFilled;
+  const [finalASV, setFinalASV]   = useState<number>(originalASV);
+  const [remark, setRemark]       = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [showAccessDenied, setShowAccessDenied] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const hasChange    = finalASV !== originalASV;
+  const remarkFilled = remark.trim().length > 0;
+  const canSubmit    = hasChange && remarkFilled && !submitting;
 
   function handleSubmitPress() {
-    if (!MOCK_USER.isCertifiedEvaluator) {
+    if (!isCertifiedEvaluator) {
       setShowAccessDenied(true);
       return;
     }
     setShowConfirmModal(true);
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     setShowConfirmModal(false);
-    // TODO: call backend API to save the correction
-    navigation.goBack();
+    setSubmitting(true);
+    try {
+      await submitCorrection(
+        confirmedScoreId,
+        sessionId,
+        sampleId,
+        originalASV as ASVScore,
+        finalASV as ASVScore,
+        remark.trim(),
+        user?.uid ?? ''
+      );
+      navigation.goBack();
+    } catch (e: any) {
+      console.error('[ScoreCorrection] submit failed:', e?.message ?? e);
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -327,7 +342,10 @@ export default function ScoreCorrectionScreen({ navigation, route }: any) {
           disabled={!canSubmit}
           activeOpacity={canSubmit ? 0.85 : 1}
         >
-          <Text style={styles.submitBtnText}>⊙ Submit Correction</Text>
+          {submitting
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <Text style={styles.submitBtnText}>⊙ Submit Correction</Text>
+          }
         </TouchableOpacity>
       </View>
 

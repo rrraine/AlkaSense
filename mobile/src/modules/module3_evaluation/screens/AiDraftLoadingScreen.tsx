@@ -269,11 +269,13 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
       const result = inferenceResultRef.current;
       navigation?.navigate('AiDraftResult', {
         ...params,
-        evaluationId:       result?.evaluationId ?? null,
-        aiDraftScore:       result?.draft?.asv_score ?? 5,
-        rawConfidence:      Math.round((result?.draft?.raw_confidence ?? 0.72) * 100),
-        calibratedCertainty:Math.round((result?.draft?.certainty_score ?? 0.58) * 100),
-        hasConfidenceWarning: result?.draft?.low_certainty_flag ?? true,
+        evaluationId:        result?.evaluationId ?? null,
+        aiDraftScore:        result?.draft?.asv_score ?? 5,
+        gt_class:            result?.draft?.gt_class ?? 'INTERMEDIATE',
+        gt_range:            result?.draft?.gt_range ?? '3–5',
+        rawConfidence:       Math.round((result?.draft?.raw_confidence  ?? 0.72) * 100),
+        calibratedCertainty: Math.round((result?.draft?.certainty_score ?? 0.58) * 100),
+        hasConfidenceWarning:  result?.draft?.low_certainty_flag ?? true,
         hasObservationConflict: false,
       });
     }, totalMs);

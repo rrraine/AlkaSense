@@ -4,18 +4,26 @@ import {
   writeAsStringAsync,
 } from 'expo-file-system/legacy';
 import { getDatabase } from '../../../db/database';
-import { ExportGenerationResult } from '../../../shared/types/report.types';
+import { ExportGenerationResult, SessionReportRecord } from '../../../shared/types/report.types';
 
 export async function closeSession(sessionId: string): Promise<void> {
-  const db = await getDatabase();
+  const db = getDatabase();
   await db.runAsync(
     `UPDATE sessions SET status = 'CLOSED' WHERE id = ?`,
     [sessionId]
   );
 }
 
+export async function getReportBySession(sessionId: string): Promise<SessionReportRecord | null> {
+  const db = getDatabase();
+  return db.getFirstAsync<SessionReportRecord>(
+    'SELECT * FROM session_reports WHERE session_id = ? ORDER BY rowid DESC LIMIT 1',
+    [sessionId]
+  );
+}
+
 export async function generateReport(sessionId: string): Promise<ExportGenerationResult> {
-  const db = await getDatabase();
+  const db = getDatabase();
 
   const session = await db.getFirstAsync<{
     id: string; name: string; batch_id: string;
@@ -54,7 +62,7 @@ export async function generateReport(sessionId: string): Promise<ExportGeneratio
   const csvHeader =
     'sample_identifier,rice_variety,grain_count,asv_score,gt_class,gt_range,ai_draft_used,deviated,remark,evaluator_id,confirmed_at\n';
   const csvRows = rows
-    .map((r: typeof rows[number]) =>
+    .map((r) =>
       [
         r.sample_identifier,
         r.rice_variety,

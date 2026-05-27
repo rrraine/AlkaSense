@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,53 +7,21 @@ import {
   TouchableOpacity,
   StatusBar,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
-
-// ─────────────────────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────────────────────
+import {
+  fetchSessionProgress,
+  SessionProgress,
+} from '../services/SessionProgressService';
+import { generateReport, getReportBySession } from '../services/ReportExportService';
+import { SessionReportRecord } from '../../../shared/types/report.types';
 
 const GREEN = '#008236';
 
-const SESSION_INFO = {
-  sessionName: 'Spring Harvest 2026',
-  sessionId: 'ALKA-2026-041',
-  evaluator: 'Dr. Maria Santos',
-  evaluatorId: 'eval-001',
-  startTime: '5/15/2026, 4:00:00 PM',
-  endTime: '5/15/2026, 6:34:00 PM',
-  duration: '2h 34m',
-  generated: '5/15/2026, 6:34:15 PM',
-};
-
-const STATS = [
-  { value: 18, label: 'Classified', icon: '✓', color: '#008236', bg: '#F0FDF4', iconBg: '#008236' },
-  { value: 3, label: 'Rejected', icon: '✕', color: '#DC2626', bg: '#FEF2F2', iconBg: '#DC2626' },
-  { value: 24, label: 'Total Submitted', icon: '▦', color: '#1D4ED8', bg: '#EFF6FF', iconBg: '#1D4ED8' },
-  { value: 2, label: 'Expert Corrections', icon: '◷', color: '#B45309', bg: '#FFF8E8', iconBg: '#D97706' },
-];
-
-const ASV_DISTRIBUTION = [0, 1, 2, 5, 6, 2, 1];
-const ASV_MAX = 8;
-const ASV_Y_LABELS = [8, 6, 4, 2, 0];
-
-const GT_SLICES = [
-  { value: 6, color: '#EF4444', label: 'High GT' },
-  { value: 78, color: '#F59E0B', label: 'Intermediate GT' },
-  { value: 17, color: '#3B82F6', label: 'Low GT' },
-];
-
-const TREATMENT = {
-  koh: '1.7%',
-  temperature: '30°C',
-  duration: '23h',
-  protocol: 'IRRI Standard',
-};
-
 // ─────────────────────────────────────────────────────────────
-// PIE CHART HELPERS
+// PIE CHART
 // ─────────────────────────────────────────────────────────────
 
 const SIZE = 170;
@@ -61,51 +29,41 @@ const R = SIZE / 2;
 
 function polar(cx: number, cy: number, r: number, angle: number) {
   const rad = ((angle - 90) * Math.PI) / 180;
-  return {
-    x: cx + r * Math.cos(rad),
-    y: cy + r * Math.sin(rad),
-  };
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
-function arc(cx: number, cy: number, r: number, start: number, end: number) {
+function arcPath(cx: number, cy: number, r: number, start: number, end: number) {
   const startPt = polar(cx, cy, r, end);
-  const endPt = polar(cx, cy, r, start);
+  const endPt   = polar(cx, cy, r, start);
   const largeArc = end - start > 180 ? 1 : 0;
   return `M ${cx} ${cy} L ${startPt.x} ${startPt.y} A ${r} ${r} 0 ${largeArc} 0 ${endPt.x} ${endPt.y} Z`;
 }
 
-// ─────────────────────────────────────────────────────────────
-// PIE CHART (WITH SLICE LABELS + HORIZONTAL LEGEND)
-// ─────────────────────────────────────────────────────────────
+type GTSlice = { value: number; color: string; label: string };
 
-function PieChart() {
-  const total = GT_SLICES.reduce((a, b) => a + b.value, 0);
-
+function PieChart({ slices }: { slices: GTSlice[] }) {
+  const total = slices.reduce((a, b) => a + b.value, 0) || 1;
   let cursor = 0;
-  const slices = GT_SLICES.map((s) => {
+  const computed = slices.map((s) => {
     const angle = (s.value / total) * 360;
     const midAngle = cursor + angle / 2;
-    const slice = { ...s, start: cursor, end: cursor + angle, midAngle };
+    const out = { ...s, start: cursor, end: cursor + angle, midAngle };
     cursor += angle;
-    return slice;
+    return out;
   });
-
-  // Label positions — use a slightly larger radius so labels sit outside the slice
   const LABEL_R = R * 0.62;
 
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>GT Classification Distribution</Text>
-
       <View style={{ alignItems: 'center' }}>
         <Svg width={SIZE + 80} height={SIZE} viewBox={`-40 0 ${SIZE + 80} ${SIZE}`}>
-          {slices.map((s, i) => (
-            <Path key={i} d={arc(R, R, R, s.start, s.end)} fill={s.color} />
+          {computed.map((s, i) => (
+            <Path key={i} d={arcPath(R, R, R, s.start, s.end)} fill={s.color} />
           ))}
-
-          {/* Percentage labels on slices */}
-          {slices.map((s, i) => {
+          {computed.map((s, i) => {
             const pt = polar(R, R, LABEL_R, s.midAngle);
+            if (s.value === 0) return null;
             return (
               <SvgText
                 key={`lbl-${i}`}
@@ -116,16 +74,14 @@ function PieChart() {
                 fontWeight="700"
                 fill="#fff"
               >
-                {`${s.value}%`}
+                {`${Math.round((s.value / total) * 100)}%`}
               </SvgText>
             );
           })}
         </Svg>
       </View>
-
-      {/* HORIZONTAL LEGEND */}
       <View style={styles.pieLegendRow}>
-        {GT_SLICES.map((s) => (
+        {slices.map((s) => (
           <View key={s.label} style={styles.legendItemRow}>
             <View style={[styles.legendDot, { backgroundColor: s.color }]} />
             <Text style={styles.legendText}>{s.label}</Text>
@@ -137,20 +93,21 @@ function PieChart() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ANIMATED BAR CHART (WITH Y-AXIS)
+// ANIMATED BAR CHART
 // ─────────────────────────────────────────────────────────────
 
 const CHART_HEIGHT = 140;
 
-function AnimatedBarChart() {
+function AnimatedBarChart({ distribution }: { distribution: number[] }) {
   const animValues = useRef(
-    ASV_DISTRIBUTION.map(() => new Animated.Value(0))
+    Array.from({ length: 7 }, () => new Animated.Value(0))
   ).current;
 
   useEffect(() => {
+    const asvMax = Math.max(...distribution, 1);
     const animations = animValues.map((v, i) =>
       Animated.spring(v, {
-        toValue: (ASV_DISTRIBUTION[i] / ASV_MAX) * CHART_HEIGHT,
+        toValue: ((distribution[i] ?? 0) / asvMax) * CHART_HEIGHT,
         friction: 7,
         tension: 50,
         delay: i * 80,
@@ -158,29 +115,27 @@ function AnimatedBarChart() {
       })
     );
     Animated.stagger(60, animations).start();
-  }, []);
+  }, [distribution]);
+
+  const asvMax = Math.max(...distribution, 1);
+  const yLabels = [asvMax, Math.round(asvMax * 0.75), Math.round(asvMax * 0.5), Math.round(asvMax * 0.25), 0];
 
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>ASV Distribution</Text>
-
       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-
-        {/* Y-AXIS LABELS */}
         <View style={{ height: CHART_HEIGHT + 20, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 4, paddingBottom: 20 }}>
-          {ASV_Y_LABELS.map((label) => (
-            <Text key={label} style={styles.yAxisLabel}>{label}</Text>
+          {yLabels.map((label, i) => (
+            <Text key={i} style={styles.yAxisLabel}>{label}</Text>
           ))}
         </View>
-
-        {/* BARS */}
         <View style={{ flex: 1, flexDirection: 'row', height: CHART_HEIGHT + 20, alignItems: 'flex-end' }}>
-          {ASV_DISTRIBUTION.map((_, i) => (
+          {animValues.map((animVal, i) => (
             <View key={i} style={{ flex: 1, alignItems: 'center' }}>
               <Animated.View
                 style={{
                   width: 22,
-                  height: animValues[i],
+                  height: animVal,
                   backgroundColor: '#16A34A',
                   borderTopLeftRadius: 6,
                   borderTopRightRadius: 6,
@@ -199,48 +154,103 @@ function AnimatedBarChart() {
 // MAIN SCREEN
 // ─────────────────────────────────────────────────────────────
 
-export default function BatchSummaryScreen({ navigation }: any) {
+export default function BatchSummaryScreen({ navigation, route }: any) {
+  const { sessionId } = route?.params ?? {};
+  const [progress, setProgress] = useState<SessionProgress | null>(null);
+  const [report, setReport]     = useState<SessionReportRecord | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId) { setLoading(false); return; }
+    Promise.all([
+      fetchSessionProgress(sessionId).catch(() => null),
+      getReportBySession(sessionId).catch(() => null),
+    ]).then(([prog, rep]) => {
+      if (prog) setProgress(prog);
+      if (rep) setReport(rep);
+      setLoading(false);
+    });
+  }, [sessionId]);
+
+  async function handleExportCSV() {
+    if (!sessionId || exporting) return;
+    setExporting(true);
+    try {
+      await generateReport(sessionId);
+      const rep = await getReportBySession(sessionId);
+      if (rep) setReport(rep);
+    } catch (e) {
+      console.error('[BatchSummary] export failed:', e);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const session = progress?.session;
+
+  const statsConfig = [
+    { value: progress?.confirmedCount ?? 0, label: 'Classified',         icon: '✓', color: '#008236', bg: '#F0FDF4', iconBg: '#008236' },
+    { value: progress?.rejectedCount ?? 0,  label: 'Rejected',           icon: '✕', color: '#DC2626', bg: '#FEF2F2', iconBg: '#DC2626' },
+    { value: progress?.totalSamples ?? 0,   label: 'Total Submitted',    icon: '▦', color: '#1D4ED8', bg: '#EFF6FF', iconBg: '#1D4ED8' },
+    { value: progress?.correctionCount ?? 0,label: 'Expert Corrections', icon: '◷', color: '#B45309', bg: '#FFF8E8', iconBg: '#D97706' },
+  ];
+
+  const asvArr = [1, 2, 3, 4, 5, 6, 7].map((i) => progress?.asvDistribution[i] ?? 0);
+
+  const { HIGH, INTERMEDIATE, LOW } = progress?.gtDistribution ?? { HIGH: 0, INTERMEDIATE: 0, LOW: 0 };
+  const gtSlices: GTSlice[] = [
+    { value: HIGH,         color: '#EF4444', label: 'High GT' },
+    { value: INTERMEDIATE, color: '#F59E0B', label: 'Intermediate GT' },
+    { value: LOW,          color: '#3B82F6', label: 'Low GT' },
+  ];
+
+  const generatedStr = report?.generated_at
+    ? new Date(report.generated_at).toLocaleString()
+    : '—';
+
+  if (loading) {
+    return (
+      <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={GREEN} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
 
-      {/* ── HEADER (with subtitle) ── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={{ color: '#fff', fontSize: 20 }}>←</Text>
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>Batch Summary</Text>
-          <Text style={styles.headerSubtitle}>Session {SESSION_INFO.sessionId}</Text>
+          <Text style={styles.headerSubtitle}>
+            {session?.batch_id ? `Session ${session.batch_id}` : '—'}
+          </Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-
-        {/* ── BATCH SUMMARY REPORT BANNER ── */}
         <View style={styles.reportBanner}>
           <View style={styles.reportIconBox}>
-            {/* Document icon */}
             <Text style={{ fontSize: 18 }}>📄</Text>
           </View>
           <View>
             <Text style={styles.reportBannerTitle}>Batch Summary Report</Text>
-            <Text style={styles.reportBannerSub}>Generated: {SESSION_INFO.generated}</Text>
+            <Text style={styles.reportBannerSub}>Generated: {generatedStr}</Text>
           </View>
         </View>
 
-        {/* ── SESSION INFORMATION (all 7 fields) ── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Session Information</Text>
-
           {[
-            { label: 'Session Name:', value: SESSION_INFO.sessionName },
-            { label: 'Session ID:', value: SESSION_INFO.sessionId },
-            { label: 'Evaluator:', value: SESSION_INFO.evaluator },
-            { label: 'Evaluator ID:', value: SESSION_INFO.evaluatorId },
-            { label: 'Start Time:', value: SESSION_INFO.startTime },
-            { label: 'End Time:', value: SESSION_INFO.endTime },
-            { label: 'Total Duration:', value: SESSION_INFO.duration },
+            { label: 'Session Name:',    value: session?.name ?? '—' },
+            { label: 'Session ID:',      value: session?.batch_id ?? '—' },
+            { label: 'Evaluator ID:',    value: session?.evaluator_id ?? '—' },
+            { label: 'Evaluation Date:', value: session?.evaluation_date ?? '—' },
           ].map(({ label, value }) => (
             <View key={label} style={styles.sessionRow}>
               <Text style={styles.sessionLabel}>{label}</Text>
@@ -249,9 +259,8 @@ export default function BatchSummaryScreen({ navigation }: any) {
           ))}
         </View>
 
-        {/* ── STATS ── */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          {STATS.map((s, i) => (
+          {statsConfig.map((s, i) => (
             <View key={i} style={{ width: '48%' }}>
               <View style={[styles.statCard, { backgroundColor: s.bg }]}>
                 <View style={[styles.statIconBox, { backgroundColor: s.iconBg }]}>
@@ -266,19 +275,17 @@ export default function BatchSummaryScreen({ navigation }: any) {
           ))}
         </View>
 
-        {/* ── CHARTS ── */}
-        <AnimatedBarChart />
-        <PieChart />
+        <AnimatedBarChart distribution={asvArr} />
+        <PieChart slices={gtSlices} />
 
-        {/* ── TREATMENT PARAMETERS ── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Treatment Parameters</Text>
           <View style={styles.treatmentGrid}>
             {[
-              { label: 'KOH:', value: TREATMENT.koh },
-              { label: 'Duration:', value: TREATMENT.duration },
-              { label: 'Temperature:', value: TREATMENT.temperature },
-              { label: 'Protocol:', value: TREATMENT.protocol },
+              { label: 'KOH:',          value: session ? `${session.koh_concentration}%` : '—' },
+              { label: 'Duration:',     value: session ? `${session.incubation_duration}h` : '—' },
+              { label: 'Temperature:',  value: session ? `${session.incubation_temperature}°C` : '—' },
+              { label: 'Protocol:',     value: 'IRRI Standard' },
             ].map(({ label, value }) => (
               <View key={label} style={styles.treatmentItem}>
                 <Text style={styles.treatmentLabel}>{label}</Text>
@@ -291,13 +298,24 @@ export default function BatchSummaryScreen({ navigation }: any) {
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      {/* ── FOOTER ── */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.exportBtn}>
+        <TouchableOpacity
+          style={[styles.exportBtn, exporting && { opacity: 0.6 }]}
+          onPress={handleExportCSV}
+          disabled={exporting}
+        >
           <Text style={styles.exportIcon}>⬇</Text>
-          <Text style={styles.exportBtnText}>Export CSV</Text>
+          <Text style={styles.exportBtnText}>{exporting ? 'Exporting...' : 'Export CSV'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.uploadBtn} onPress={() => navigation.navigate('UploadReport')}>
+        <TouchableOpacity
+          style={styles.uploadBtn}
+          onPress={() =>
+            navigation.navigate('UploadReport', {
+              sessionId,
+              sessionName: session?.name,
+            })
+          }
+        >
           <Text style={styles.uploadIcon}>⬆</Text>
           <Text style={styles.uploadBtnText}>Upload Report</Text>
         </TouchableOpacity>
@@ -313,7 +331,6 @@ export default function BatchSummaryScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F3F4F6' },
 
-  // Header
   header: {
     backgroundColor: GREEN,
     paddingTop: 50,
@@ -322,10 +339,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  headerTitle:    { color: '#fff', fontSize: 18, fontWeight: '700' },
   headerSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
 
-  // Report Banner
   reportBanner: {
     backgroundColor: '#F0FDF4',
     borderRadius: 12,
@@ -345,11 +361,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reportBannerTitle: { fontSize: 14, fontWeight: '700', color: '#15803D' },
-  reportBannerSub: { fontSize: 12, color: '#16A34A', marginTop: 2 },
+  reportBannerSub:   { fontSize: 12, color: '#16A34A', marginTop: 2 },
 
-  // Session card
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 14 },
+  card:      { backgroundColor: '#fff', padding: 16, borderRadius: 14 },
   cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
+
   sessionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -360,7 +376,6 @@ const styles = StyleSheet.create({
   sessionLabel: { fontSize: 13, color: '#6B7280' },
   sessionValue: { fontSize: 13, fontWeight: '500', color: '#111827', textAlign: 'right', flexShrink: 1, marginLeft: 8 },
 
-  // Stat cards
   statCard: {
     flexDirection: 'row',
     gap: 10,
@@ -376,16 +391,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Y-axis label
   yAxisLabel: { fontSize: 11, color: '#9CA3AF', lineHeight: 14 },
 
-  // Treatment
   treatmentGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   treatmentItem: { width: '50%', flexDirection: 'row', gap: 4, marginBottom: 8 },
   treatmentLabel: { fontSize: 13, color: '#6B7280' },
   treatmentValue: { fontSize: 13, fontWeight: '600' },
 
-  // Footer
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -407,8 +419,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  exportIcon: { color: '#fff', fontSize: 16 },
+  exportIcon:    { color: '#fff', fontSize: 16 },
   exportBtnText: { color: '#fff', fontWeight: '700' },
+
   uploadBtn: {
     flex: 1,
     borderWidth: 1,
@@ -419,10 +432,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  uploadIcon: { color: '#374151', fontSize: 16 },
+  uploadIcon:    { color: '#374151', fontSize: 16 },
   uploadBtnText: { color: '#374151', fontWeight: '700' },
 
-  // Pie legend
   pieLegendRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -431,6 +443,6 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   legendItemRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 12, color: '#374151', fontWeight: '500' },
+  legendDot:     { width: 10, height: 10, borderRadius: 5 },
+  legendText:    { fontSize: 12, color: '#374151', fontWeight: '500' },
 });

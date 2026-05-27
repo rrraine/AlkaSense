@@ -38,6 +38,13 @@ export async function initDatabase(): Promise<void> {
     await db.execAsync(`DROP TABLE IF EXISTS grain_images;`);
   }
 
+  // One-time migration: correction_log legacy schema (has 'synced' column) → architecture schema
+  const corrCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(correction_log)`);
+  const hasLegacyCorr = corrCols.some((c) => c.name === 'synced');
+  if (hasLegacyCorr) {
+    await db.execAsync(`DROP TABLE IF EXISTS correction_log;`);
+  }
+
   await createTables();
   await createTargetSchemaTables();
 }
@@ -81,15 +88,17 @@ async function createTables(): Promise<void> {
       validation_timestamp TEXT
     );
 
-    -- Correction log table
+    -- Correction log (architecture schema)
     CREATE TABLE IF NOT EXISTS correction_log (
-      id              TEXT PRIMARY KEY,
-      sample_id       TEXT NOT NULL REFERENCES samples(id) ON DELETE CASCADE,
-      original_score  INTEGER NOT NULL CHECK (original_score BETWEEN 1 AND 7),
-      corrected_score INTEGER NOT NULL CHECK (corrected_score BETWEEN 1 AND 7),
-      reason          TEXT,
-      corrected_at    TEXT NOT NULL DEFAULT (datetime('now')),
-      synced          INTEGER NOT NULL DEFAULT 0
+      id                       TEXT PRIMARY KEY,
+      confirmed_score_id       TEXT NOT NULL,
+      session_id               TEXT NOT NULL,
+      sample_id                TEXT NOT NULL REFERENCES samples(id) ON DELETE CASCADE,
+      original_asv_score       INTEGER NOT NULL CHECK (original_asv_score BETWEEN 1 AND 7),
+      corrected_asv_score      INTEGER NOT NULL CHECK (corrected_asv_score BETWEEN 1 AND 7),
+      correction_remark        TEXT,
+      submitting_evaluator_id  TEXT NOT NULL,
+      submitted_at             TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- Audit log table

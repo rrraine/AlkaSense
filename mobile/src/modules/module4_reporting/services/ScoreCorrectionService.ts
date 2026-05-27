@@ -12,22 +12,11 @@ export async function submitCorrection(
   correctionRemark: string,
   submittingEvaluatorId: string
 ): Promise<CorrectionLog> {
-  const payload: CorrectionPayload = {
-    confirmed_score_id: confirmedScoreId,
-    session_id: sessionId,
-    sample_id: sampleId,
-    original_asv_score: originalAsvScore,
-    corrected_asv_score: correctedAsvScore,
-    correction_remark: correctionRemark,
-    submitting_evaluator_id: submittingEvaluatorId,
-  };
-
-  const receipt = await submitCorrectionApi(payload);
-
-  const db = await getDatabase();
+  const db = getDatabase();
   const id = `corr-${Date.now()}`;
-  const submittedAt = receipt.received_at;
+  const submittedAt = new Date().toISOString();
 
+  // Write locally first — the correction is persisted regardless of backend availability
   await db.runAsync(
     `INSERT INTO correction_log
       (id, confirmed_score_id, session_id, sample_id, original_asv_score,
@@ -46,6 +35,22 @@ export async function submitCorrection(
     ]
   );
 
+  // Attempt backend sync; failure is non-fatal (correction already saved locally)
+  const payload: CorrectionPayload = {
+    confirmed_score_id: confirmedScoreId,
+    session_id: sessionId,
+    sample_id: sampleId,
+    original_asv_score: originalAsvScore,
+    corrected_asv_score: correctedAsvScore,
+    correction_remark: correctionRemark,
+    submitting_evaluator_id: submittingEvaluatorId,
+  };
+  try {
+    await submitCorrectionApi(payload);
+  } catch (e: any) {
+    console.log('[ScoreCorrectionService] backend sync failed, correction saved locally:', e?.message ?? e);
+  }
+
   const row = await db.getFirstAsync<CorrectionLog>(
     'SELECT * FROM correction_log WHERE id = ?',
     [id]
@@ -55,7 +60,7 @@ export async function submitCorrection(
 }
 
 export async function getCorrectionsBySession(sessionId: string): Promise<CorrectionLog[]> {
-  const db = await getDatabase();
+  const db = getDatabase();
   return db.getAllAsync<CorrectionLog>(
     'SELECT * FROM correction_log WHERE session_id = ? ORDER BY submitted_at DESC',
     [sessionId]

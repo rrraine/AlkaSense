@@ -370,7 +370,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
 
             <TouchableOpacity
               style={styles.secondaryBtn}
-              onPress={() => navigation.navigate('BatchSummary')}
+              onPress={() => navigation.navigate('BatchSummary', { sessionId })}
             >
               <Text style={styles.secondaryBtnText}>📊{'\n'}View Summary</Text>
             </TouchableOpacity>

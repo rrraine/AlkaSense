@@ -18,8 +18,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-import { fetchFilteredCases } from '../modules/module3_evaluation/services/LibraryService';
-import type { ReferenceCase } from '../shared/types/scoring.types';
+import { fetchFilteredCases } from '../../module3_evaluation/services/LibraryService';
+import type { ReferenceCase } from '../../../shared/types/scoring.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
