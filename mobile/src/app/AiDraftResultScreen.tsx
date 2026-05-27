@@ -225,12 +225,12 @@ function ScaleRow({
 function ImagePreviewModal({
   visible,
   imageUri,
-  sampleId,
+  sample_identifier,
   onClose,
 }: {
   visible: boolean;
   imageUri?: string;
-  sampleId: string;
+  sample_identifier: string;
   onClose: () => void;
 }) {
 
@@ -273,7 +273,7 @@ function ImagePreviewModal({
           </View>
 
           <Text style={styles.modalSubtitle}>
-            Sample {sampleId}
+            Sample {sample_identifier}
           </Text>
 
           <Image
@@ -302,6 +302,7 @@ export default function AiDraftResultScreen({
     imageUri,
 
     sampleId = 'S003',
+    sample_identifier,
     variety = 'NSIC Rc 222',
     grainCount = '10',
     session = 'Spring Harvest 2026',
@@ -351,6 +352,7 @@ export default function AiDraftResultScreen({
     navigation?.navigate('AiScoreConfirm', {
       imageUri,
       sampleId,
+      sample_identifier,
       variety,
       grainCount,
       session,
@@ -387,7 +389,7 @@ export default function AiDraftResultScreen({
         </View>
 
         <Text style={styles.headerSubtitle}>
-          Sample {sampleId}
+          Sample {sample_identifier}
         </Text>
 
         {/* INFO BANNER */}
@@ -397,7 +399,7 @@ export default function AiDraftResultScreen({
           <View style={styles.infoBannerText}>
 
             <Text style={styles.infoBannerLine1}>
-              {sampleId} • {variety} • {grainCount} grains
+              {sample_identifier} • {variety} • {grainCount} grains
             </Text>
 
             <Text style={styles.infoBannerLine2}>
@@ -445,7 +447,7 @@ export default function AiDraftResultScreen({
       <ImagePreviewModal
         visible={previewVisible}
         imageUri={imageUri}
-        sampleId={sampleId}
+        sample_identifier={sample_identifier}
         onClose={() => setPreviewVisible(false)}
       />
 

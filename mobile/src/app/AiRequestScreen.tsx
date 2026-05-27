@@ -179,6 +179,7 @@ export default function AiRequestScreen({ navigation, route }: any) {
   const {
     imageUri,
     sampleId  = 'S003',
+    sample_identifier = 'Session Name',
     variety   = 'NSIC Rc 222',
     grainCount = '10',
     session   = 'Spring Harvest 2026',
@@ -195,6 +196,7 @@ function handleRequestDraft() {
   navigation.navigate('AiDraftLoading', {
     imageUri,
     sampleId,
+    sample_identifier,
     variety,
     grainCount,
     session,
@@ -217,13 +219,13 @@ function handleRequestDraft() {
           <Text style={styles.headerTitle}>AI Scoring</Text>
         </View>
 
-        <Text style={styles.headerSubtitle}>Sample {sampleId}</Text>
+        <Text style={styles.headerSubtitle}>Sample {sample_identifier}</Text>
 
         {/* Info banner with thumbnail */}
         <View style={styles.infoBanner}>
           <View style={styles.infoBannerText}>
             <Text style={styles.infoBannerLine1}>
-              {sampleId} • {variety} • {grainCount} grains
+              {sample_identifier} • {variety} • {grainCount} grains
             </Text>
             <Text style={styles.infoBannerLine2}>Session: {session}</Text>
           </View>

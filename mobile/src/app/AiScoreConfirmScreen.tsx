@@ -159,6 +159,7 @@ export default function AiScoreConfirmation({
   const {
     imageUri,
     sampleId = 'S003',
+    sample_identifier = 'Session Name',
     variety = 'NSIC Rc 222',
     grainCount = '10',
     session = 'Spring Harvest 2026',
@@ -256,6 +257,7 @@ function handleConfirm() {
 
   navigation?.navigate('ScoreConfirmed', {
     imageUri,
+    sample_identifier,
     sampleId,
     variety,
     grainCount,
@@ -323,7 +325,7 @@ function handleConfirm() {
           </View>
 
           <Text style={styles.headerSubtitle}>
-            Sample {sampleId}
+            Sample {sample_identifier}
           </Text>
 
           {/* INFO BANNER */}

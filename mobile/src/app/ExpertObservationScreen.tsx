@@ -194,6 +194,7 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
   const {
     imageUri,
     sampleId,
+    sample_identifier,
     variety,
     grainCount,
     session,
@@ -253,6 +254,7 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
     navigation.navigate('AiRequest', {
       imageUri,
       sampleId,
+      sample_identifier,
       variety,
       grainCount,
       session,
@@ -264,6 +266,7 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
     navigation.navigate('ManualScore', {
       imageUri,
       sampleId,
+      sample_identifier,
       variety,
       grainCount,
       session,
@@ -290,13 +293,13 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
             {/* <Text style={styles.headerRefIcon}>📖</Text> */}
           </TouchableOpacity>
         </View>
-        <Text style={styles.headerSubtitle}>Sample {sampleId}</Text>
+        <Text style={styles.headerSubtitle}>Sample {sample_identifier}</Text>
 
         {/* Info Banner */}
         <View style={styles.infoBanner}>
           <View style={styles.infoBannerText}>
             <Text style={styles.infoBannerLine1}>
-              {sampleId} • {variety} • {grainCount} grains
+              {sample_identifier} • {variety} • {grainCount} grains
             </Text>
             <Text style={styles.infoBannerLine2}>Session: {session}</Text>
           </View>

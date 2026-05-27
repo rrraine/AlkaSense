@@ -84,7 +84,7 @@ function StepRow({ label, status, color }: { label: string; status: StepStatus; 
 
 export default function AiDraftLoadingScreen({ navigation, route }: any) {
   const {
-    imageUri, sampleId, sampleIdentifier, variety, grainCount,
+    imageUri, sampleId, sample_identifier, variety, grainCount,
     session, sessionId, answers, grainImageId,
   } = route?.params ?? {};
 
@@ -102,7 +102,7 @@ export default function AiDraftLoadingScreen({ navigation, route }: any) {
     if (navigatedRef.current) return;
     navigatedRef.current = true;
     navigation?.navigate('AiDraftResult', {
-      imageUri, sampleId, sampleIdentifier, variety, grainCount, session, sessionId,
+      imageUri, sampleId, sample_identifier, variety, grainCount, session, sessionId,
       evaluationId:          evaluationIdRef.current,
       aiDraftScore:          result.predicted_asv_score,
       rawConfidence:         result.raw_confidence,
