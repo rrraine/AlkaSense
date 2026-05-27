@@ -23,6 +23,10 @@ export async function uploadReport(input: ReportUploadInput): Promise<UploadRece
     name: 'report.csv',
   } as unknown as Blob);
 
+  // React Native XHR requires Content-Type: multipart/form-data (without boundary).
+  // The native XHR layer appends the correct "; boundary=XXX" string automatically
+  // when it detects a FormData body.  Omitting this header lets the axios instance
+  // default (application/json) win → FastAPI receives wrong Content-Type → 422.
   const { data } = await apiClient.post<UploadReceipt>('/reports/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

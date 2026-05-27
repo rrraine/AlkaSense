@@ -13,7 +13,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mobile"
+      "bundleIdentifier": "com.anonymous.mobile",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,11 +34,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-dev-client",
       "expo-sqlite",
       "expo-secure-store",
-      "@react-native-community/datetimepicker",
-      "react-native-fast-tflite"
+      "@react-native-community/datetimepicker"
     ],
     "sdkVersion": "54.0.0"
   }
