@@ -363,6 +363,21 @@ function getProtocolCorrective(failedItem: string): string {
   }
 }
 
+export async function persistImage(tempUri: string, sampleId: string): Promise<string> {
+  // expo-file-system's documentDirectory survives app updates and reboots
+  const dir = `${FileSystem.documentDirectory}grain_images/`;
+
+  // Ensure the folder exists
+  await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+
+  const filename = `${sampleId}_${Date.now()}.jpg`;
+  const permanentUri = `${dir}${filename}`;
+
+  await FileSystem.copyAsync({ from: tempUri, to: permanentUri });
+
+  return permanentUri; // ← save THIS to the DB, not the original URI
+}
+
 /**
  * Persists an accepted image, writes a rejection log if applicable,
  * and updates the sample status.

@@ -17,7 +17,7 @@ import ProtocolChecklist, {
   allProtocolPassed,
 } from '../components/ProtocolChecklist';
 
-import { validateImage, submitValidatedImage } from '../services/ImageService';
+import { validateImage, submitValidatedImage, persistImage } from '../services/ImageService';
 
 const GREEN = '#008236';
 
@@ -74,12 +74,15 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
           ? 'Protocol Violation'
           : 'Quality Failure';
 
+      // persist actual image
+      const permanentPath = await persistImage(imageUri, sampleId);
+
       // Always persist — rejected records are retained for audit,
       // accepted records advance the sample status.
       await submitValidatedImage({
         sampleId,
         sessionId,
-        imagePath: imageUri,
+        imagePath: permanentPath,
         validationStatus,
         validationResult: result,
         protocol: {
