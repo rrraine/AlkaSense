@@ -71,7 +71,7 @@ function SampleCard({ sample, navigation, sessionId, sessionName }: { sample: Sa
       });
       return;
     }
-    navigation.navigate('SamplePreview', { id: sample.id, variety: sample.rice_variety, status: sample.status, asv: sample.asv_score });
+    navigation.navigate('SamplePreview', { id: sample.id, sample_identifier: sample.sample_identifier, variety: sample.rice_variety, status: sample.status, asv: sample.asv_score });
   }
   return (
     <TouchableOpacity style={styles.sampleCard} activeOpacity={0.7} onPress={handleNavigation}>
@@ -141,6 +141,7 @@ function ASVChart({ samples }: { samples: Sample[] }) {
 
 export default function SessionProgressScreen({ navigation, route }: any) {
   const sessionId = route?.params?.sessionId;
+  const sessionName = route?.params?.sessionName
   const [session, setSession] = useState<Session | null>(null);
   const [samples, setSamples] = useState<Sample[]>([]);
   const [progress, setProgress] = useState({ total: 0, confirmed: 0, pending: 0, imageSubmitted: 0, progress: 0 });
@@ -203,7 +204,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
             </View>
             <Text style={styles.sessionTitle}>{session?.name ?? 'Session'}</Text>
             <Text style={styles.sessionSubtitle}>
-              {session?.id} · Batch {session?.batch_identifier}
+              Batch {session?.batch_identifier}
             </Text>
             <View style={styles.metaCombined}>
               <Text style={styles.metaText}>📅 {evaluationDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}{isDateOverridden ? ' ⚡' : ''}</Text>
@@ -264,7 +265,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.registerBtn}
-            onPress={() => navigation.navigate('RegisterSample', { sessionId })}
+            onPress={() => navigation.navigate('RegisterSample', {   sessionName: session?.name, sessionId, })}
             disabled={session?.status !== 'Active'}
           >
             <Text style={styles.registerBtnText}>+ Register New Sample</Text>
