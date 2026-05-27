@@ -18,7 +18,7 @@ const GREEN = '#008236';
 // ─────────────────────────────────────────────────────────────
 // Certainty Bar
 // ─────────────────────────────────────────────────────────────
-function CertaintyBar({ value }: { value: number }) {
+function CertaintyBar({ value, rawConfidence }: { value: number; rawConfidence: number }) {
 
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -61,7 +61,7 @@ function CertaintyBar({ value }: { value: number }) {
       </View>
 
       <Text style={styles.certaintyNote}>
-        Raw confidence: 72% (adjusted for observation conflicts)
+        Raw confidence: {rawConfidence}% (adjusted for observation conflicts)
       </Text>
 
     </View>
@@ -305,6 +305,8 @@ export default function AiDraftResultScreen({
     variety = 'NSIC Rc 222',
     grainCount = '10',
     session = 'Spring Harvest 2026',
+    sessionId,
+    evaluationId,
 
     aiDraftScore = 5,
     rawConfidence = 72,
@@ -312,6 +314,9 @@ export default function AiDraftResultScreen({
 
     hasConfidenceWarning = true,
     hasObservationConflict = true,
+
+    answers = {},
+    conflictDimensions = [],
 
   } = route?.params ?? {};
 
@@ -349,7 +354,10 @@ export default function AiDraftResultScreen({
       variety,
       grainCount,
       session,
+      sessionId,
+      evaluationId,
       aiDraftScore,
+      answers,
     });
   }
 
@@ -469,9 +477,11 @@ export default function AiDraftResultScreen({
             title="Observation Conflict Warning"
             color="orange"
           >
-            {
-              'The draft ASV score conflicts with your observation entries for:\n• Spreading Pattern Texture\n• Grain Translucency'
-            }
+            {`The draft ASV score conflicts with your observation entries for:\n${
+              (conflictDimensions.length > 0 ? conflictDimensions : ['Spreading Pattern Texture', 'Grain Translucency'])
+                .map((d: string) => `• ${d}`)
+                .join('\n')
+            }`}
           </WarningBanner>
 
         )}
@@ -520,6 +530,7 @@ export default function AiDraftResultScreen({
 
             <CertaintyBar
               value={calibratedCertainty}
+              rawConfidence={rawConfidence}
             />
 
           </View>
@@ -587,7 +598,9 @@ export default function AiDraftResultScreen({
       grainCount,
       session,
       aiDraftScore,
+      rawConfidence,
       calibratedCertainty,
+      allScores: route?.params?.allScores ?? [],
     })
   }
   activeOpacity={0.85}
@@ -602,6 +615,44 @@ export default function AiDraftResultScreen({
             </Text>
 
           </TouchableOpacity>
+
+        </View>
+
+
+        {/* EXPERT OBSERVATIONS */}
+
+        <View style={styles.sectionCard}>
+
+          <Text style={styles.sectionTitle}>
+            Expert Observations
+          </Text>
+
+          {[
+            { label: 'Spreading Pattern Texture', value: answers?.spreadingPattern },
+            { label: 'Grain Translucency',         value: answers?.grainTranslucency },
+            { label: 'Score Uniformity',            value: answers?.scoreUniformity },
+            {
+              label: 'Anomaly Flags',
+              value:
+                Array.isArray(answers?.anomalyFlags) && answers.anomalyFlags.length > 0
+                  ? answers.anomalyFlags.join(', ')
+                  : 'No Anomaly',
+            },
+            { label: 'KOH Solution Appearance',    value: answers?.kohSolution },
+          ].map((row, i, arr) => (
+            <View
+              key={row.label}
+              style={[
+                styles.obsRow,
+                i < arr.length - 1 && styles.obsRowBorder,
+              ]}
+            >
+              <Text style={styles.obsLabel}>{row.label}</Text>
+              <Text style={styles.obsValue}>
+                {row.value ?? 'Not provided'}
+              </Text>
+            </View>
+          ))}
 
         </View>
 
@@ -1012,6 +1063,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#7C3AED',
+  },
+
+  // OBSERVATIONS
+
+  obsRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+
+  obsRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+
+  obsLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+
+  obsValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
   },
 
   // FOOTER

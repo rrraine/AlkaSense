@@ -1,31 +1,88 @@
 import { create } from 'zustand';
 
-export type SessionForm = {
-  evaluatorName: string;
-  location: string;
-  riceVariety: string;
-  notes: string;
-};
+interface SessionState {
 
-type SessionStore = {
-  activeSessionId: string | null;
-  form: SessionForm;
-  setForm: (values: Partial<SessionForm>) => void;
-  resetForm: () => void;
-  setActiveSession: (id: string | null) => void;
-};
+  activeSession: any | null;
 
-const defaultForm: SessionForm = {
-  evaluatorName: '',
-  location: '',
-  riceVariety: '',
-  notes: '',
-};
+  selectedSession: any | null;
 
-export const useSessionStore = create<SessionStore>((set) => ({
-  activeSessionId: null,
-  form: defaultForm,
-  setForm: (values) => set((state) => ({ form: { ...state.form, ...values } })),
-  resetForm: () => set({ form: defaultForm }),
-  setActiveSession: (id) => set({ activeSessionId: id }),
-}));
+  sessionProgress: {
+    total: number;
+    confirmed: number;
+    pending: number;
+    imageSubmitted: number;
+    progress: number;
+  } | null;
+
+  // ───────────────────────────────────────────────────────────
+  // Actions
+  // ───────────────────────────────────────────────────────────
+
+  setActiveSession: (
+    session: any | null
+  ) => void;
+
+  setSelectedSession: (
+    session: any | null
+  ) => void;
+
+  setSessionProgress: (
+    progress: any
+  ) => void;
+
+  clearSession: () => void;
+}
+
+export const useSessionStore =
+  create<SessionState>((set) => ({
+
+    activeSession: null,
+
+    selectedSession: null,
+
+    sessionProgress: null,
+
+    // ─────────────────────────────────────────────────────────
+    // Set Active Session
+    // ─────────────────────────────────────────────────────────
+
+    setActiveSession: (
+      session
+    ) =>
+      set({
+        activeSession: session,
+      }),
+
+    // ─────────────────────────────────────────────────────────
+    // Set Selected Session
+    // ─────────────────────────────────────────────────────────
+
+    setSelectedSession: (
+      session
+    ) =>
+      set({
+        selectedSession: session,
+      }),
+
+    // ─────────────────────────────────────────────────────────
+    // Set Session Progress
+    // ─────────────────────────────────────────────────────────
+
+    setSessionProgress: (
+      progress
+    ) =>
+      set({
+        sessionProgress: progress,
+      }),
+
+    // ─────────────────────────────────────────────────────────
+    // Clear Session
+    // ─────────────────────────────────────────────────────────
+
+    clearSession: () =>
+      set({
+        activeSession: null,
+        selectedSession: null,
+        sessionProgress: null,
+      }),
+  }));

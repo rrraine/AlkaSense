@@ -251,28 +251,27 @@ export default function AiScoreConfirmation({
   // Handlers
   // ───────────────────────────────────────────────────────────────────────────
 
-  function handleConfirm() {
-    if (!isValid) return;
+function handleConfirm() {
+  if (!isValid) return;
 
-    navigation?.navigate(
-      'ScoreConfirmed',
-      {
-        imageUri,
-        sampleId,
-        variety,
-        grainCount,
-        session,
+  navigation?.navigate('ScoreConfirmed', {
+    imageUri,
+    sampleId,
+    variety,
+    grainCount,
+    session,
+    sessionId: route?.params?.sessionId,
+    evaluationId: route?.params?.evaluationId, // ← ADD THIS
 
-        aiDraftScore,
-        finalScore: selectedScore,
+    aiDraftScore,
+    finalScore: selectedScore,
 
-        deviationRemark,
-        conflictRemark,
+    deviationRemark,
+    conflictRemark,
 
-        answers,
-      }
-    );
-  }
+    answers,
+  });
+}
 
   // ───────────────────────────────────────────────────────────────────────────
   // Observation Values

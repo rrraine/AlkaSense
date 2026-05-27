@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../core/firebase";
-import { registerUser } from "../core/api/auth";
+import { signUpUser } from "../services/UserService";
 import {
   View,
   Text,
@@ -81,62 +79,73 @@ export default function SignUpScreen({ navigation }: any) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [firebaseError, setFirebaseError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const passwordStrength = checkPassword(password);
 
-  async function handleSignUp() {
+  // ─── Validation ────────────────────────────────────────────────────────────
+
+  function validate(): Record<string, string> {
     const newErrors: Record<string, string> = {};
-
     if (!fullName.trim()) newErrors.fullName = "Full name is required.";
-
     const emailErr = validateEmail(email);
     if (emailErr) newErrors.email = emailErr;
-
     if (!role) newErrors.role = "Select a role.";
     if (!institution.trim()) newErrors.institution = "Institution is required.";
-
     if (passwordStrength.error) newErrors.password = passwordStrength.error;
-
     if (!confirmPassword) {
       newErrors.confirmPassword = "Please confirm your password.";
     } else if (password !== confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match.";
     }
+    return newErrors;
+  }
 
-    setErrors(newErrors);
+  // ─── Handler ───────────────────────────────────────────────────────────────
+
+async function handleSignUp() {
+  const newErrors = validate();
+  setErrors(newErrors);
+  setFirebaseError("");
+
+  if (Object.keys(newErrors).length > 0) return;
+
+  setLoading(true);
+
+  try {
+    await signUpUser({ fullName, email, role, institution, password });
+
+    // stop loading FIRST
+    setLoading(false);
+
+    // optional success feedback 
+    alert("Account created successfully!");
+
+    // reset form fields
+    setFullName("");
+    setEmail("");
+    setRole("");
+    setInstitution("");
+    setPassword("");
+    setConfirmPassword("");
+    setErrors({});
     setFirebaseError("");
 
-    if (Object.keys(newErrors).length > 0) return;
+    // IMPORTANT: navigate to login
+    navigation.replace("Login");
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
+  } catch (error: any) {
+    setLoading(false);
 
-      const firebaseUser = userCredential.user;
-      const idToken = await firebaseUser.getIdToken();
-
-      const backendUser = await registerUser(idToken, {
-        firebase_uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        full_name: fullName,
-        role,
-        institution,
-      });
-
-      console.log("BACKEND RESPONSE:", backendUser);
-      navigation.navigate("Login");
-    } catch (error: any) {
-      console.log("SIGNUP ERROR:", JSON.stringify(error, null, 2));
-      if (error.code === "auth/email-already-in-use") {
-        setFirebaseError("An account with this email already exists.");
-      } else {
-        setFirebaseError("Account creation failed. Please try again.");
-      }
+    if (error?.code === "auth/email-already-in-use") {
+      setFirebaseError("An account with this email already exists.");
+    } else {
+      setFirebaseError("Account creation failed. Please try again.");
     }
   }
+}
+
+  // ─── UI ────────────────────────────────────────────────────────────────────
 
   return (
     <KeyboardAvoidingView
@@ -163,6 +172,7 @@ export default function SignUpScreen({ navigation }: any) {
 
         {/* FORM */}
         <View style={styles.form}>
+
           {/* FIREBASE ERROR */}
           {!!firebaseError && (
             <View style={styles.firebaseErrorBox}>
@@ -276,8 +286,6 @@ export default function SignUpScreen({ navigation }: any) {
                 <Text style={styles.show}>{showPassword ? "Hide" : "Show"}</Text>
               </TouchableOpacity>
             </View>
-
-            {/* PASSWORD STRENGTH RULES — shown when focused or has content */}
             {(passwordFocused || password.length > 0) && (
               <View style={styles.passwordRulesBox}>
                 {passwordStrength.rules.map((rule) => (
@@ -285,7 +293,6 @@ export default function SignUpScreen({ navigation }: any) {
                 ))}
               </View>
             )}
-
             {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
@@ -321,9 +328,15 @@ export default function SignUpScreen({ navigation }: any) {
             </Text>
           </View>
 
-          {/* BUTTON */}
-          <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-            <Text style={styles.buttonText}>Create Account</Text>
+          {/* SUBMIT BUTTON */}
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleSignUp}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? "Creating Account..." : "Create Account"}
+            </Text>
           </TouchableOpacity>
 
           {/* SIGN IN */}
@@ -333,6 +346,7 @@ export default function SignUpScreen({ navigation }: any) {
               <Text style={styles.signinLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -457,6 +471,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
+  },
+  buttonDisabled: {
+    backgroundColor: "#6B7280",
+    elevation: 0,
   },
   buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   signinRow: { flexDirection: "row", justifyContent: "center", marginTop: 24 },

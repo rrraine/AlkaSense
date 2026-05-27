@@ -4,8 +4,11 @@
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo2.png",
     "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "assets/**"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,6 +18,8 @@
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
+      "package": "com.alkasense.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -29,8 +34,10 @@
     "plugins": [
       "expo-sqlite",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "expo-media-library"
     ],
     "sdkVersion": "54.0.0"
+    
   }
+  
 }

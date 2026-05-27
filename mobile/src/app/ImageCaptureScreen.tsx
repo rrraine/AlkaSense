@@ -25,6 +25,8 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
   const variety = route?.params?.variety ?? 'NSIC Rc 222';
   const grainCount = route?.params?.grainCount ?? '10';
   const session = route?.params?.session ?? 'Spring Harvest 2026';
+  const sample_identifier = route?.params?.sample_identifier ?? 'SMP-2026-001';
+  const sessionId = route?.params?.sessionId;
 
   const cameraRef = useRef<CameraHandle>(null);
 
@@ -49,9 +51,11 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
       navigation.navigate('ImagePreview', {
         imageUri: photo.uri,
         sampleId,
+        sample_identifier,
         variety,
         grainCount,
         session,
+        sessionId
       });
     }
   }
@@ -68,9 +72,11 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
       navigation.navigate('ImagePreview', {
         imageUri: result.assets[0].uri,
         sampleId,
+        sample_identifier,
         variety,
         grainCount,
         session,
+        sessionId
       });
     }
   }
@@ -93,7 +99,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
       {/* INFO */}
       <View style={styles.infoBanner}>
         <Text style={styles.infoLine1}>
-          {sampleId} • {variety} • {grainCount} grains
+          {sample_identifier} • {variety} • {grainCount} grains
         </Text>
 
         <Text style={styles.infoLine2}>

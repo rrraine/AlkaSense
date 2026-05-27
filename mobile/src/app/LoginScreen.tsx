@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth"; 
-import { auth } from "../core/firebase";
-
+import { signInUser } from "../services/UserService";
 import {
   View,
   Text,
@@ -14,8 +12,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-// ─── Password validation helpers ─────────────────────────────────────────────
-console.log("API URL:", process.env.EXPO_PUBLIC_API_URL);
+// ─── Validation helpers ───────────────────────────────────────────────────────
 
 function validateEmail(email: string): string {
   if (!email.trim()) return "Email is required.";
@@ -38,8 +35,19 @@ export default function LoginScreen({ navigation }: any) {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [firebaseError, setFirebaseError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Inline validation on blur
+  // ─── Validation ────────────────────────────────────────────────────────────
+
+  function validate(): Record<string, string> {
+    const newErrors: Record<string, string> = {};
+    const emailErr = validateEmail(email);
+    const passErr = validatePassword(password);
+    if (emailErr) newErrors.email = emailErr;
+    if (passErr) newErrors.password = passErr;
+    return newErrors;
+  }
+
   function handleEmailBlur() {
     const msg = validateEmail(email);
     setErrors((prev) => ({ ...prev, email: msg }));
@@ -50,51 +58,34 @@ export default function LoginScreen({ navigation }: any) {
     setErrors((prev) => ({ ...prev, password: msg }));
   }
 
-   async function handleSignIn() {
-    const emailErr = validateEmail(email);
-    const passErr = validatePassword(password);
+  // ─── Handler ───────────────────────────────────────────────────────────────
 
-    const newErrors: Record<string, string> = {};
-    if (emailErr) newErrors.email = emailErr;
-    if (passErr) newErrors.password = passErr;
-
+  async function handleSignIn() {
+    const newErrors = validate();
     setErrors(newErrors);
     setFirebaseError("");
-
     if (Object.keys(newErrors).length > 0) return;
 
+    setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
-
-      const firebaseUser = userCredential.user;
-      const idToken = await firebaseUser.getIdToken();
-
-      await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
-
+      await signInUser({ email, password });
       navigation.navigate("Dashboard");
     } catch (error: any) {
-      console.log("Login failed:", error.message);
       if (
         error.code === "auth/user-not-found" ||
         error.code === "auth/wrong-password" ||
         error.code === "auth/invalid-credential"
       ) {
-        setFirebaseError("Incorrect email or password. Please try again.");
-      } else if (error.code === "auth/too-many-requests") {
-        setFirebaseError("Too many attempts. Please try again later.");
+        setFirebaseError("Invalid email or password.");
       } else {
         setFirebaseError("Sign in failed. Please try again.");
       }
+    } finally {
+      setLoading(false);
     }
   }
+
+  // ─── UI ────────────────────────────────────────────────────────────────────
 
   return (
     <KeyboardAvoidingView
@@ -118,6 +109,7 @@ export default function LoginScreen({ navigation }: any) {
 
         {/* FORM */}
         <View style={styles.form}>
+
           {/* FIREBASE ERROR */}
           {!!firebaseError && (
             <View style={styles.firebaseErrorBox}>
@@ -149,12 +141,7 @@ export default function LoginScreen({ navigation }: any) {
           {/* PASSWORD */}
           <View style={styles.field}>
             <Text style={styles.label}>Password</Text>
-            <View
-              style={[
-                styles.passwordRow,
-                !!errors.password && styles.inputError,
-              ]}
-            >
+            <View style={[styles.passwordRow, !!errors.password && styles.inputError]}>
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Enter your password"
@@ -167,9 +154,7 @@ export default function LoginScreen({ navigation }: any) {
                 onBlur={handlePasswordBlur}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity
-                onPress={() => setShowPassword((prev) => !prev)}
-              >
+              <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
                 <Text style={styles.show}>{showPassword ? "Hide" : "Show"}</Text>
               </TouchableOpacity>
             </View>
@@ -184,8 +169,14 @@ export default function LoginScreen({ navigation }: any) {
           </TouchableOpacity>
 
           {/* SIGN IN BUTTON */}
-          <TouchableOpacity style={styles.button} onPress={handleSignIn}>
-            <Text style={styles.buttonText}>Sign In</Text>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleSignIn}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? "Signing In..." : "Sign In"}
+            </Text>
           </TouchableOpacity>
 
           {/* SIGN UP */}
@@ -195,6 +186,7 @@ export default function LoginScreen({ navigation }: any) {
               <Text style={styles.signupLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -273,6 +265,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
+  },
+  buttonDisabled: {
+    backgroundColor: "#6B7280",
+    elevation: 0,
   },
   buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   signupRow: { flexDirection: "row", justifyContent: "center", marginTop: 35 },

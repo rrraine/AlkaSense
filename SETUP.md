@@ -99,6 +99,8 @@ cd backend
 ### Create the virtual environment
 ```powershell
 py -3.11 -m venv venv
+#mac 
+python3.11 -m venv venv
 ```
 
 ### Activate the virtual environment
@@ -191,6 +193,10 @@ mobile/
 ```powershell
 cd mobile
 npx expo start
+```
+
+```zsh
+
 ```
 Scan the QR code with **Expo Go** on your phone.
 
