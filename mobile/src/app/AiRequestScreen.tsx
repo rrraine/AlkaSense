@@ -86,12 +86,12 @@ function HeaderThumbnail({
 function ImagePreviewModal({
   visible,
   imageUri,
-  sampleId,
+  sample_identifier,
   onClose,
 }: {
   visible: boolean;
   imageUri?: string;
-  sampleId: string;
+  sample_identifier: string;
   onClose: () => void;
 }) {
   return (
@@ -111,7 +111,7 @@ function ImagePreviewModal({
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.modalSubtitle}>Sample {sampleId}</Text>
+          <Text style={styles.modalSubtitle}>Sample {sample_identifier}</Text>
 
           <Image
             source={imageUri ? { uri: imageUri } : undefined}
@@ -179,7 +179,7 @@ export default function AiRequestScreen({ navigation, route }: any) {
   const {
     imageUri,
     sampleId  = 'S003',
-    sample_identifier = 'Session Name',
+    sample_identifier = 'Sample Name',
     variety   = 'NSIC Rc 222',
     grainCount = '10',
     session   = 'Spring Harvest 2026',
@@ -280,7 +280,7 @@ function handleRequestDraft() {
       <ImagePreviewModal
         visible={imageModalVisible}
         imageUri={imageUri}
-        sampleId={sampleId}
+        sample_identifier={sample_identifier}
         onClose={() => setImageModalVisible(false)}
       />
     </View>

@@ -131,6 +131,7 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
     variety,
     grainCount,
     session,
+    session_identifier,
     sessionId,
     // Score source — exactly one of these two should be present:
     manualScore,   // present when coming from ManualScoreScreen
@@ -211,7 +212,7 @@ export default function ScoreConfirmedScreen({ navigation, route }: any) {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Score Confirmed</Text>
         </View>
-        <Text style={styles.headerSubtitle}>Sample {sampleId}</Text>
+        <Text style={styles.headerSubtitle}>Sample {session_identifier}</Text>
       </View>
 
       {/* ── SCROLL BODY ────────────────────────────────────────────────────── */}

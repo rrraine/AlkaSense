@@ -54,6 +54,7 @@ function UploadProgressCard({ progress }: { progress: Animated.Value }) {
 
 export default function UploadReportScreen({ navigation, route }: any) {
   const sessionId = route?.params?.sessionId;
+  const sessionName = route?.params?.sessionName;
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [report, setReport] = useState<SessionReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,7 +139,7 @@ export default function UploadReportScreen({ navigation, route }: any) {
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>Report Upload</Text>
-          <Text style={styles.headerSubtitle}>Session {sessionId}</Text>
+          <Text style={styles.headerSubtitle}>{sessionName}</Text>
         </View>
       </View>
 

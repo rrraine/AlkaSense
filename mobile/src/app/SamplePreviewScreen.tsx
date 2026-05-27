@@ -63,7 +63,8 @@ function MetaItem({ label, value }: { label: string; value: string }) {
 export default function SamplePreviewScreen({ navigation, route }: any) {
   const {
     // Core sample fields (passed from SessionProgressScreen SampleCard)
-    id            = 'S001',
+    sampleId            = 'S001',
+    sample_identifier = 'Sample Name',
     variety       = 'NSIC Rc 222',
     status        = 'Confirmed',
     asv           = 5,
@@ -113,7 +114,7 @@ export default function SamplePreviewScreen({ navigation, route }: any) {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Sample {id}</Text>
+          <Text style={styles.headerTitle}>{sample_identifier}</Text>
           <Text style={styles.headerSubtitle}>{variety}</Text>
         </View>
 
@@ -222,7 +223,7 @@ export default function SamplePreviewScreen({ navigation, route }: any) {
           style={styles.correctBtn}
           onPress={() =>
             navigation.navigate('ScoreCorrection', {
-              sampleId:   id,
+              sampleId:   sampleId,
               variety,
               grainCount: route.params?.grainCount ?? '10',
               session,

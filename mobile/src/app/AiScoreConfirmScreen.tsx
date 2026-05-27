@@ -333,7 +333,7 @@ function handleConfirm() {
 
             <View style={{ flex: 1 }}>
               <Text style={styles.infoBannerLine1}>
-                {sampleId} • {variety} •{' '}
+                {sample_identifier} • {variety} •{' '}
                 {grainCount} grains
               </Text>
 

@@ -144,12 +144,12 @@ function SectionCard({ children }: { children: React.ReactNode }) {
 function ImagePreviewModal({
   visible,
   imageUri,
-  sampleId,
+  sample_identifier,
   onClose,
 }: {
   visible: boolean;
   imageUri: string;
-  sampleId: string;
+  sample_identifier: string;
   onClose: () => void;
 }) {
   return (
@@ -171,7 +171,7 @@ function ImagePreviewModal({
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.modalSubtitle}>Sample {sampleId}</Text>
+          <Text style={styles.modalSubtitle}>Sample {sample_identifier}</Text>
 
           {/* Full Image */}
           <Image
@@ -415,7 +415,7 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
       <ImagePreviewModal
         visible={imageModalVisible}
         imageUri={imageUri}
-        sampleId={sampleId}
+        sample_identifier={sample_identifier}
         onClose={() => setImageModalVisible(false)}
       />
 
