@@ -248,14 +248,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('BatchSummary', { sessionId })}>
                 <Text style={styles.secondaryBtnText}>📊{'\n'}View Summary</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('CorrectionLog', { sessionId })}>
-                <Text style={styles.secondaryBtnText}>📋{'\n'}Corrections</Text>
-              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={styles.libraryBtn} onPress={() => navigation.navigate('ReferenceLibrary')}>
-              <Text style={styles.libraryBtnText}>📖 ASV Reference Library</Text>
-            </TouchableOpacity>
 
             <View style={{ height: 120 }} />
           </View>

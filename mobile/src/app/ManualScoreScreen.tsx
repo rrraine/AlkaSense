@@ -261,13 +261,6 @@ export default function ManualScoreScreen({ navigation, route }: any) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ASV REFERENCE LIBRARY */}
-        <TouchableOpacity style={styles.libraryBtn} onPress={() => navigation.navigate('ReferenceLibrary')}>
-          <Text style={styles.libraryText}>
-            📖 ASV Reference Library
-          </Text>
-        </TouchableOpacity>
-
         {/* Section heading */}
         <View style={styles.sectionHeadingCard}>
           <Text style={styles.sectionHeading}>Select a score</Text>
