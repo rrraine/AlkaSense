@@ -36,4 +36,5 @@ ml/__pycache__/
 
 
 # macOS
-.DS_Store
+.DS_Storebackend/uploads/
+/backend/uploads/

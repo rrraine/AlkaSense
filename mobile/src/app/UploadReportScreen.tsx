@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Animated, Easing, ActivityIndicator, Alert,
+  StatusBar, Animated, Easing, ActivityIndicator,
 } from 'react-native';
 import { uploadReport, getReportForSession, generateReport } from '../services/ReportService';
-import { completeSession } from '../services/SessionService';
 import type { SessionReport } from '../db/repositories/SessionReportRepository';
 
 const GREEN = '#008236';
@@ -58,7 +57,6 @@ export default function UploadReportScreen({ navigation, route }: any) {
   const [report, setReport] = useState<SessionReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isClosing, setIsClosing] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -70,7 +68,7 @@ export default function UploadReportScreen({ navigation, route }: any) {
           existingReport = await generateReport(sessionId);
         }
         setReport(existingReport);
-        if (existingReport.upload_status === 'Uploaded') {
+        if (existingReport.upload_status === 'UPLOADED') {
           setUploadState('success');
         }
       } catch (err: any) {
@@ -95,29 +93,12 @@ export default function UploadReportScreen({ navigation, route }: any) {
       await uploadReport(sessionId);
       Animated.timing(progress, { toValue: 1, duration: 400, useNativeDriver: false }).start(() => {
         setUploadState('success');
-        const updatedReport = { ...report!, upload_status: 'Uploaded' as const };
+        const updatedReport = { ...report!, upload_status: 'UPLOADED' as const };
         setReport(updatedReport);
       });
     } catch (err: any) {
       setUploadState('error');
       setError(err.message);
-    }
-  }
-
-  async function handleCloseSession() {
-    if (!sessionId) return;
-    try {
-      setIsClosing(true);
-      await completeSession(sessionId);
-      Alert.alert('Success', 'Session closed successfully', [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Dashboard'),
-        },
-      ]);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to close session');
-      setIsClosing(false);
     }
   }
 
@@ -164,7 +145,7 @@ export default function UploadReportScreen({ navigation, route }: any) {
             </View>
             <View style={[styles.fieldBox, { marginTop: 10 }]}>
               <Text style={styles.fieldLabel}>Generated</Text>
-              <Text style={styles.fieldValue}>{new Date(report.created_at).toLocaleString('en-US')}</Text>
+              <Text style={styles.fieldValue}>{new Date(report.generated_at).toLocaleString('en-US')}</Text>
             </View>
           </View>
         )}
@@ -190,21 +171,9 @@ export default function UploadReportScreen({ navigation, route }: any) {
 
       <View style={styles.footer}>
         {uploadState === 'success' ? (
-          <View style={{ gap: 10 }}>
-            <TouchableOpacity style={[styles.footerBtn, styles.footerBtnGreen]} onPress={() => navigation.navigate('SessionProgress', { sessionId })}>
-              <Text style={[styles.footerBtnLabel, styles.footerBtnTextWhite]}>Return to Session Dashboard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.footerBtn, styles.footerBtnSecondary]}
-              onPress={handleCloseSession}
-              disabled={isClosing}
-            >
-              {isClosing ? (
-                <ActivityIndicator color={GREEN} style={{ marginRight: 8 }} />
-              ) : null}
-              <Text style={[styles.footerBtnLabel, styles.footerBtnTextGreen]}>✓ Close Session</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={[styles.footerBtn, styles.footerBtnGreen]} onPress={() => navigation.navigate('SessionProgress', { sessionId })}>
+            <Text style={[styles.footerBtnLabel, styles.footerBtnTextWhite]}>Return to Session Dashboard</Text>
+          </TouchableOpacity>
         ) : uploadState === 'uploading' ? (
           <View style={[styles.footerBtn, styles.footerBtnGray]}>
             <ActivityIndicator color="#6B7280" style={{ marginRight: 8 }} />
@@ -252,8 +221,6 @@ const styles = StyleSheet.create({
   footerBtnLabel: { fontSize: 15, fontWeight: '700' },
   footerBtnGreen: { backgroundColor: GREEN },
   footerBtnGray: { backgroundColor: '#D1D5DB' },
-  footerBtnSecondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: GREEN },
   footerBtnTextWhite: { color: '#fff' },
   footerBtnTextGray: { color: '#6B7280' },
-  footerBtnTextGreen: { color: GREEN },
 });
