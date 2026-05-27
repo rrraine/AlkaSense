@@ -159,7 +159,7 @@ export default function AiScoreConfirmation({
   const {
     imageUri,
     sampleId = 'S003',
-    sample_identifier = 'Session Name',
+    sample_identifier,
     variety = 'NSIC Rc 222',
     grainCount = '10',
     session = 'Spring Harvest 2026',
@@ -167,12 +167,9 @@ export default function AiScoreConfirmation({
     // AI DATA
     aiDraftScore = 5,
     calibratedCertainty = 58,
-    hasConfidenceWarning = true,
-    hasObservationConflict = true,
-    conflictDimensions = [
-      'Spreading Pattern Texture',
-      'Grain Translucency',
-    ],
+    hasConfidenceWarning = false,
+    hasObservationConflict = false,
+    conflictDimensions = [],
 
     // USER OBSERVATIONS
     answers = {
@@ -268,8 +265,8 @@ function handleConfirm() {
     aiDraftScore,
     finalScore: selectedScore,
 
-    deviationRemark,
-    conflictRemark,
+    remark_score_deviation: deviationRemark,
+    correction_remark: conflictRemark,
 
     answers,
   });

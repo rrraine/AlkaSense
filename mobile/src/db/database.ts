@@ -17,6 +17,34 @@ export async function initDatabase(): Promise<void> {
  */
 async function runMigrations(): Promise<void> {
 
+  // ── Migration 003: add AI conflict analysis fields to draft_scores ───────────
+const draftScoreCols = await db.getAllAsync<{ name: string }>(
+  `PRAGMA table_info(draft_scores)`
+);
+
+const hasConfidenceWarningCol = draftScoreCols.some(
+  (c) => c.name === 'has_confidence_warning'
+);
+
+if (!hasConfidenceWarningCol) {
+  await db.execAsync(`
+    ALTER TABLE draft_scores
+    ADD COLUMN has_confidence_warning INTEGER NOT NULL DEFAULT 0;
+  `);
+
+  await db.execAsync(`
+    ALTER TABLE draft_scores
+    ADD COLUMN has_observation_conflict INTEGER NOT NULL DEFAULT 0;
+  `);
+
+  await db.execAsync(`
+    ALTER TABLE draft_scores
+    ADD COLUMN conflict_dimensions TEXT NOT NULL DEFAULT '[]';
+  `);
+
+  console.log('[DB Migration 003] Added AI conflict analysis fields to draft_scores.');
+}
+
   // ── Migration 001: relax NOT NULL on evaluation_records.grain_image_id ──────
   const evalCols = await db.getAllAsync<{ name: string; notnull: number }>(
     `PRAGMA table_info(evaluation_records)`
@@ -261,6 +289,9 @@ async function createTables(): Promise<void> {
       raw_confidence              REAL NOT NULL,
       calibrated_certainty        REAL NOT NULL,
       overlay_file_path           TEXT UNIQUE,
+      has_confidence_warning      INTEGER NOT NULL DEFAULT 0,
+      has_observation_conflict    INTEGER NOT NULL DEFAULT 0,
+      conflict_dimensions         TEXT NOT NULL DEFAULT '[]',
       remark_conflict_resolution  TEXT,
       remark_score_deviation      TEXT
     );
