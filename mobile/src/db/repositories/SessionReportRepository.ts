@@ -11,7 +11,7 @@ function generateUUID() {
 
 type SessionReportInput = {
   session_id: string;
-  pdf_path: string;
+  pdf_path?: string;
   csv_path: string;
   generated_at: string;
 };
@@ -24,7 +24,7 @@ export class SessionReportRepository {
       `INSERT INTO session_reports
          (id, session_id, pdf_path, csv_path, generated_at, upload_status, upload_attempts)
        VALUES (?, ?, ?, ?, ?, 'NOT_UPLOADED', 0)`,
-      [id, input.session_id, input.pdf_path, input.csv_path, input.generated_at]
+      [id, input.session_id, input.pdf_path ?? '', input.csv_path, input.generated_at]
     );
     return this.getById(id);
   }

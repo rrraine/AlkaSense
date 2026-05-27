@@ -71,16 +71,9 @@ function ReportPackageSummary({
 
       {report && (
         <View style={styles.fileRow}>
-          <View style={[styles.fileCard, styles.fileCardBlue]}>
-            <Text style={styles.fileIconBlue}>📄</Text>
-            <Text style={[styles.fileCardLabel, { color: '#2563EB' }]}>PDF Report</Text>
-            <Text style={[styles.fileCardFilename, { color: '#1D4ED8' }]} numberOfLines={1}>
-              {filename(report.pdf_path)}
-            </Text>
-          </View>
-          <View style={[styles.fileCard, styles.fileCardPurple]}>
-            <Text style={styles.fileIconPurple}>📄</Text>
-            <Text style={[styles.fileCardLabel, { color: '#7C3AED' }]}>CSV Data</Text>
+          <View style={[styles.fileCard, styles.fileCardPurple, { flex: 1 }]}>
+            <Text style={styles.fileIconPurple}>📊</Text>
+            <Text style={[styles.fileCardLabel, { color: '#7C3AED' }]}>CSV Report</Text>
             <Text style={[styles.fileCardFilename, { color: '#6D28D9' }]} numberOfLines={1}>
               {filename(report.csv_path)}
             </Text>
@@ -190,7 +183,6 @@ export default function UploadReportScreen({ navigation, route }: any) {
 
     try {
       await initiateUpload(sessionId, {
-        pdf_path: report.pdf_path,
         csv_path: report.csv_path,
         generated_at: report.generated_at,
       });

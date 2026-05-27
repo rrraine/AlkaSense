@@ -1,8 +1,11 @@
 import {
   documentDirectory,
+  getInfoAsync,
   makeDirectoryAsync,
   writeAsStringAsync,
 } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { Alert } from 'react-native';
 import { getDatabase } from '../../../db/database';
 import { ExportGenerationResult, SessionReportRecord } from '../../../shared/types/report.types';
 
@@ -82,22 +85,41 @@ export async function generateReport(sessionId: string): Promise<ExportGeneratio
   const csvPath = `${dir}report.csv`;
   await writeAsStringAsync(csvPath, csvHeader + csvRows, { encoding: 'utf8' });
 
-  const pdfContent = `AlkaSense Batch Report\nSession: ${session.name}\nGenerated: ${generatedAt}\nSamples: ${rows.length}`;
-  const pdfPath = `${dir}report.pdf`;
-  await writeAsStringAsync(pdfPath, pdfContent, { encoding: 'utf8' });
-
   const result: ExportGenerationResult = {
-    pdf_path: pdfPath,
     csv_path: csvPath,
     generated_at: generatedAt,
   };
 
+  // pdf_path column is NOT NULL in the DB schema; pass empty string until a migration removes it.
   await db.runAsync(
     `INSERT OR REPLACE INTO session_reports
       (id, session_id, pdf_path, csv_path, generated_at, upload_status, upload_attempts)
      VALUES (?, ?, ?, ?, ?, 'NOT_UPLOADED', 0)`,
-    [`report-${sessionId}`, sessionId, pdfPath, csvPath, generatedAt]
+    [`report-${sessionId}`, sessionId, '', csvPath, generatedAt]
   );
 
   return result;
+}
+
+export async function shareReport(filePath: string): Promise<void> {
+  try {
+    const info = await getInfoAsync(filePath);
+    if (!info.exists) {
+      Alert.alert('File Not Found', 'Report file not found. Please regenerate the report.');
+      return;
+    }
+    const available = await Sharing.isAvailableAsync();
+    if (!available) {
+      Alert.alert('Sharing Unavailable', 'Sharing is not supported on this device.');
+      return;
+    }
+    await Sharing.shareAsync(filePath, {
+      mimeType: 'text/csv',
+      dialogTitle: 'Export CSV Report',
+      UTI: 'public.comma-separated-values-text',
+    });
+  } catch (error) {
+    console.error('[shareReport] failed:', error);
+    Alert.alert('Export Failed', 'Unable to open the report. Please try again.');
+  }
 }

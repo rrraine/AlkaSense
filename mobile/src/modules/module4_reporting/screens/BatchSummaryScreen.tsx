@@ -15,7 +15,7 @@ import {
   fetchSessionProgress,
   SessionProgress,
 } from '../services/SessionProgressService';
-import { generateReport, getReportBySession } from '../services/ReportExportService';
+import { generateReport, getReportBySession, shareReport } from '../services/ReportExportService';
 import { SessionReportRecord } from '../../../shared/types/report.types';
 
 const GREEN = '#008236';
@@ -160,6 +160,7 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
   const [report, setReport]     = useState<SessionReportRecord | null>(null);
   const [loading, setLoading]   = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing]   = useState(false);
 
   useEffect(() => {
     if (!sessionId) { setLoading(false); return; }
@@ -172,6 +173,16 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
       setLoading(false);
     });
   }, [sessionId]);
+
+  async function handleShareReport() {
+    if (!report?.csv_path || sharing) return;
+    setSharing(true);
+    try {
+      await shareReport(report.csv_path);
+    } finally {
+      setSharing(false);
+    }
+  }
 
   async function handleExportCSV() {
     if (!sessionId || exporting) return;
@@ -295,30 +306,40 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
           </View>
         </View>
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: 150 }} />
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.exportBtn, exporting && { opacity: 0.6 }]}
-          onPress={handleExportCSV}
-          disabled={exporting}
+          style={[styles.pdfBtn, (!report?.csv_path || sharing) && { opacity: 0.4 }]}
+          onPress={handleShareReport}
+          disabled={!report?.csv_path || sharing}
         >
-          <Text style={styles.exportIcon}>⬇</Text>
-          <Text style={styles.exportBtnText}>{exporting ? 'Exporting...' : 'Export CSV'}</Text>
+          <Text style={styles.exportIcon}>📤</Text>
+          <Text style={styles.exportBtnText}>{sharing ? 'Opening...' : 'View / Export CSV'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.uploadBtn}
-          onPress={() =>
-            navigation.navigate('UploadReport', {
-              sessionId,
-              sessionName: session?.name,
-            })
-          }
-        >
-          <Text style={styles.uploadIcon}>⬆</Text>
-          <Text style={styles.uploadBtnText}>Upload Report</Text>
-        </TouchableOpacity>
+        <View style={styles.footerRow}>
+          <TouchableOpacity
+            style={[styles.exportBtn, exporting && { opacity: 0.6 }]}
+            onPress={handleExportCSV}
+            disabled={exporting}
+          >
+            <Text style={styles.exportIcon}>⬇</Text>
+            <Text style={styles.exportBtnText}>{exporting ? 'Exporting...' : 'Export Report'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.uploadBtn}
+            onPress={() =>
+              navigation.navigate('UploadReport', {
+                sessionId,
+                sessionName: session?.name,
+              })
+            }
+          >
+            <Text style={styles.uploadIcon}>⬆</Text>
+            <Text style={styles.uploadBtnText}>Upload Report</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -404,16 +425,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    flexDirection: 'row',
+    flexDirection: 'column',
     padding: 14,
-    gap: 12,
+    gap: 10,
     borderTopWidth: 1,
     borderColor: '#E5E7EB',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pdfBtn: {
+    backgroundColor: '#15803D',
+    padding: 13,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
   },
   exportBtn: {
     flex: 1,
     backgroundColor: GREEN,
-    padding: 14,
+    padding: 13,
     borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -426,7 +460,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    padding: 14,
+    padding: 13,
     borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',

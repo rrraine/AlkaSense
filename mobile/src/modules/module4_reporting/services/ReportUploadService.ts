@@ -42,8 +42,8 @@ export async function retryUpload(
   sessionId: string
 ): Promise<{ server_id: string; received_at: string }> {
   const db = getDatabase();
-  const row = await db.getFirstAsync<{ pdf_path: string; csv_path: string; generated_at: string }>(
-    'SELECT pdf_path, csv_path, generated_at FROM session_reports WHERE session_id = ? ORDER BY rowid DESC LIMIT 1',
+  const row = await db.getFirstAsync<{ csv_path: string; generated_at: string }>(
+    'SELECT csv_path, generated_at FROM session_reports WHERE session_id = ? ORDER BY rowid DESC LIMIT 1',
     [sessionId]
   );
   if (!row) throw new Error(`No report found for session ${sessionId}`);
@@ -54,7 +54,6 @@ export async function retryUpload(
   );
 
   return initiateUpload(sessionId, {
-    pdf_path: row.pdf_path,
     csv_path: row.csv_path,
     generated_at: row.generated_at,
   });
