@@ -110,7 +110,7 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
           </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>Register Sample</Text>
-            <Text style={styles.headerSubtitle}>{sessionName || `Session ${sessionId}`}</Text>
+            <Text style={styles.headerSubtitle}>{sessionName}</Text>
           </View>
         </View>
 
@@ -238,7 +238,7 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
               if (!selectedSample) return;
               navigation?.navigate('ImageCapture', {
                 sampleId: selectedSample.id,
-                sampleIdentifier: selectedSample.sample_identifier,
+                sample_identifier: selectedSample.sample_identifier,
                 variety: selectedSample.rice_variety,
                 grainCount: String(selectedSample.grain_count),
                 sessionId,
