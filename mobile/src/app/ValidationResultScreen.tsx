@@ -1,15 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
-import { submitValidatedImage } from '../services/ImageService';
-import { SessionRepository } from '../db/repositories/SessionRepository';
 
 type ValidationStatus = 'accepted' | 'protocol_violation' | 'quality_failure';
 type PipelineStatus = 'pass' | 'fail' | 'skipped';
 
 const GREEN = '#008236';
-const sessionRepo = new SessionRepository();
 
 interface BaseConfig {
   status: ValidationStatus;
@@ -76,93 +73,45 @@ function PipelineIcon({ pipelineStatus }: { pipelineStatus: PipelineStatus }) {
 
 export default function ValidationResultScreen({ navigation, route }: any) {
   const {
+    result,
     imageUri,
     sampleId,
     sample_identifier,
     variety,
     grainCount,
     session,
-    sessionId: routeSessionId,
+    sessionId,
   } = route.params;
 
-  // Resolve sessionId from params: prefer an explicit string sessionId,
-  // then session.id if session is a full object. ImageCaptureScreen passes
-  // session as a name string so session?.id is always undefined — the
-  // useEffect below handles that case by querying SQLite for the active session.
-  const paramsSessionId =
-    typeof routeSessionId === 'string' && routeSessionId
-      ? routeSessionId
-      : typeof session === 'object' && session?.id
-      ? session.id
-      : null;
+  const status: ValidationStatus = result?.status ?? 'accepted';
+  const isAccepted = status === 'accepted';
+  const isQuality  = status === 'quality_failure';
 
-  const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(paramsSessionId);
-  const [sessionResolved, setSessionResolved] = useState(!!paramsSessionId);
-  const [proceeding, setProceeding] = useState(false);
-
-  useEffect(() => {
-    if (resolvedSessionId) return; // already have it from params
-
-    (async () => {
-      try {
-        const active = await sessionRepo.getCurrentActiveSession();
-        if (active?.id) {
-          setResolvedSessionId(active.id);
-        } else {
-          console.error('ValidationResultScreen: no active session found in SQLite');
-        }
-      } catch (err) {
-        console.error('ValidationResultScreen: failed to resolve active session:', err);
-      } finally {
-        setSessionResolved(true);
-      }
-    })();
-  }, []);
-
-  const validationStatus: ValidationStatus = route.params.validationStatus ?? 'accepted';
-  const config = FALLBACK_CONFIG[validationStatus];
-  const isAccepted = validationStatus === 'accepted';
-  const isQuality = validationStatus === 'quality_failure';
+  // Merge live result data on top of fallback so styles/labels always resolve
+  const config = {
+    ...FALLBACK_CONFIG[status],
+    completedIn: result?.completedIn ?? FALLBACK_CONFIG[status].completedIn,
+    pipeline:    result?.pipeline    ?? FALLBACK_CONFIG[status].pipeline,
+    ...(result?.rejection && {
+      rejection:  result.rejection,
+      corrective: result.corrective,
+    }),
+  };
   const errorConfig = !isAccepted ? (config as ErrorConfig) : null;
 
-  async function handleProceed() {
-    if (!resolvedSessionId) {
-      console.error('ValidationResultScreen: cannot proceed — sessionId is still unresolved');
-      Alert.alert('Session Error', 'Could not resolve session context. Please go back and try again.');
-      return;
-    }
-    setProceeding(true);
-    try {
-      await submitValidatedImage({
-        sampleId,
-        sessionId: resolvedSessionId,
-        imagePath: imageUri,
-        validationStatus: 'Accepted',
-      });
+  const displaySampleLabel = sample_identifier ?? 'Unknown sample';
 
-      navigation.navigate('ExpertObservation', {
-        imageUri, sampleId, sample_identifier, variety, grainCount, session,
-        sessionId: resolvedSessionId,
-      });
-    } catch (err) {
-      console.error('ValidationResultScreen persist error:', err);
-      Alert.alert(
-        'Save Failed',
-        'Image was not saved to this session. Please retry submit before proceeding.'
-      );
-    } finally {
-      setProceeding(false);
-    }
-  }
-
-  function handleRecapture() {
-    navigation.navigate('ImageCapture', {
-      sampleId, sample_identifier, variety, grainCount, session,
-      sessionId: resolvedSessionId,
+  function handleProceed() {
+    navigation.navigate('ExpertObservation', {
+      imageUri, sampleId, sample_identifier, variety, grainCount, session, sessionId,
     });
   }
 
-  const displaySampleLabel = sample_identifier ?? 'Unknown sample';
+  function handleResubmit() {
+    navigation.navigate('ImageCapture', {
+      sampleId, sample_identifier, variety, grainCount, session, sessionId,
+    });
+  }
 
   return (
     <View style={styles.root}>
@@ -177,7 +126,7 @@ export default function ValidationResultScreen({ navigation, route }: any) {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }}>
-        <View style={styles.section}><StatusBanner status={validationStatus} /></View>
+        <View style={styles.section}><StatusBanner status={status} /></View>
 
         <View style={styles.timingRow}>
           <View style={styles.timingLeft}>
@@ -194,7 +143,9 @@ export default function ValidationResultScreen({ navigation, route }: any) {
               <View style={styles.rejectionField}>
                 <Text style={styles.rejectionFieldLabel}>Validation Layer</Text>
                 <View style={[styles.layerTag, isQuality ? styles.layerTagQuality : styles.layerTagProtocol]}>
-                  <Text style={[styles.layerTagText, isQuality ? styles.layerTagTextQuality : styles.layerTagTextProtocol]}>{errorConfig.rejection.validationLayer}</Text>
+                  <Text style={[styles.layerTagText, isQuality ? styles.layerTagTextQuality : styles.layerTagTextProtocol]}>
+                    {errorConfig.rejection.validationLayer}
+                  </Text>
                 </View>
               </View>
               <View style={styles.fieldDivider} />
@@ -251,24 +202,12 @@ export default function ValidationResultScreen({ navigation, route }: any) {
 
       <View style={styles.footer}>
         {isAccepted ? (
-          <>
-            <TouchableOpacity
-              style={[styles.proceedBtn, (!sessionResolved || proceeding) && styles.btnDisabled]}
-              onPress={handleProceed}
-              disabled={!sessionResolved || proceeding}
-            >
-              {proceeding
-                ? <ActivityIndicator color="#FFFFFF" />
-                : <Text style={styles.proceedText}>Proceed to Evaluation  →</Text>
-              }
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.recaptureBtn} onPress={handleRecapture}>
-              <Text style={styles.recaptureText}>Recapture Image</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity style={styles.proceedBtn} onPress={handleProceed}>
+            <Text style={styles.proceedText}>Proceed to Evaluation  →</Text>
+          </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.proceedBtn} onPress={handleRecapture}>
-            <Text style={styles.proceedText}>Recapture Image</Text>
+          <TouchableOpacity style={styles.proceedBtn} onPress={handleResubmit}>
+            <Text style={styles.proceedText}>Resubmit Image</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -338,9 +277,8 @@ const styles = StyleSheet.create({
   imageCard: { backgroundColor: '#FFFFFF', marginHorizontal: 16, marginTop: 16, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E5E7EB' },
   imageCardTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 14 },
   submittedImage: { width: '100%', height: 280, borderRadius: 12, resizeMode: 'cover', backgroundColor: '#F3F4F6' },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#FFFFFF', gap: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   proceedBtn: { backgroundColor: GREEN, borderRadius: 16, paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
-  btnDisabled: { opacity: 0.5 },
   proceedText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
   recaptureBtn: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 16, paddingVertical: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   recaptureText: { color: '#111827', fontWeight: '600', fontSize: 16 },

@@ -27,6 +27,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
   const session = route?.params?.session ?? 'Spring Harvest 2026';
   const sessionId = route?.params?.sessionId;
   const sample_identifier = route?.params?.sample_identifier ?? 'SMP-2026-001';
+  const sessionId = route?.params?.sessionId;
 
   const cameraRef = useRef<CameraHandle>(null);
 
@@ -55,7 +56,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
         variety,
         grainCount,
         session,
-        sessionId,
+        sessionId
       });
     }
   }
@@ -76,7 +77,7 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
         variety,
         grainCount,
         session,
-        sessionId,
+        sessionId
       });
     }
   }
