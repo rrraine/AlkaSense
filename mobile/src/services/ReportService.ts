@@ -1,5 +1,7 @@
 import { auth } from '../core/firebase';
 import { apiFetch } from '../core/api/client';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import {
   SessionReportRepository,
   SessionReport,
@@ -22,6 +24,43 @@ function normalizeGTClass(gt: string | null | undefined): 'Low GT' | 'Intermedia
   if (v.includes('intermediate gt')) return 'Intermediate GT';
   if (v.includes('low gt')) return 'Low GT';
   return 'Null';
+}
+
+function buildConfirmedBySampleMap(confirmedEvals: Awaited<ReturnType<typeof evaluationRepo.getConfirmedEvaluations>>) {
+  const confirmedBySample = new Map<string, { asv: number; gt: string | null }>();
+
+  for (const ev of confirmedEvals) {
+    if (!ev?.sample_id) continue;
+    confirmedBySample.set(ev.sample_id, {
+      asv: Number(ev.final_asv_score ?? ev.predicted_asv_score ?? 0),
+      gt: (ev.final_gt_class ?? ev.predicted_gt_class ?? null) as string | null,
+    });
+  }
+
+  return confirmedBySample;
+}
+
+function distributionCountsToPct(counts: Record<string, number>): Record<string, number> {
+  const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  return Object.fromEntries(
+    Object.entries(counts).map(([key, value]) => [
+      key,
+      total > 0 ? Math.round((value / total) * 100) : 0,
+    ])
+  );
+}
+
+function escapeCsvValue(value: string | number | boolean | null | undefined): string {
+  if (value == null) return '';
+  const text = String(value);
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function toCsv(rows: Array<Array<string | number | boolean | null | undefined>>): string {
+  return rows.map((row) => row.map(escapeCsvValue).join(',')).join('\n');
 }
 
 /**
@@ -58,16 +97,29 @@ export async function generateReport(sessionId: string): Promise<SessionReport> 
   const confirmed = allSamples.filter((s) => s.status === 'Confirmed').length;
   const rejected = 0; // samples with quality failure images — extend when needed
   const totalCorrections = await correctionRepo.countBySession(sessionId);
+  const confirmedEvals = await evaluationRepo.getConfirmedEvaluations(sessionId);
+  const confirmedBySample = buildConfirmedBySampleMap(confirmedEvals);
 
   // ASV distribution
   const asvDistribution: Record<string, number> = {};
   const gtDistribution: Record<string, number> = {};
 
   for (const sample of allSamples) {
-    const score = String(sample.asv_score ?? 0);
+    const fallback = confirmedBySample.get(sample.id);
+    const score = String(
+      sample.asv_score >= 1 && sample.asv_score <= 7
+        ? sample.asv_score
+        : (fallback?.asv ?? 0)
+    );
     asvDistribution[score] = (asvDistribution[score] ?? 0) + 1;
-    const gt = sample.gt_class ?? 'Null';
-    gtDistribution[gt] = (gtDistribution[gt] ?? 0) + 1;
+
+    const normalized = normalizeGTClass(
+      sample.gt_class && sample.gt_class !== 'Null' ? sample.gt_class : fallback?.gt
+    );
+
+    if (normalized !== 'Null') {
+      gtDistribution[normalized] = (gtDistribution[normalized] ?? 0) + 1;
+    }
   }
 
   return await reportRepo.create({
@@ -133,17 +185,9 @@ export async function getSessionSummaryData(sessionId: string) {
   const samples = await sampleRepo.getBySession(sessionId);
   const corrections = await correctionRepo.getBySession(sessionId);
   const confirmedEvals = await evaluationRepo.getConfirmedEvaluations(sessionId);
+  const report = await reportRepo.getBySession(sessionId);
 
-  // Build confirmed-evaluation fallback map (for legacy rows where sample
-  // score/gt might not have been mirrored yet).
-  const confirmedBySample = new Map<string, { asv: number; gt: string | null }>();
-  for (const ev of confirmedEvals) {
-    if (!ev?.sample_id) continue;
-    confirmedBySample.set(ev.sample_id, {
-      asv: Number(ev.final_asv_score ?? ev.predicted_asv_score ?? 0),
-      gt: (ev.final_gt_class ?? ev.predicted_gt_class ?? null) as string | null,
-    });
-  }
+  const confirmedBySample = buildConfirmedBySampleMap(confirmedEvals);
 
   // Build ASV distribution for chart
   const asvDistribution = Array(7).fill(0);
@@ -159,8 +203,7 @@ export async function getSessionSummaryData(sessionId: string) {
   }
 
   // GT distribution for pie chart
-  const gtCounts = { 'Low GT': 0, 'Intermediate GT': 0, 'High GT': 0 };
-  let totalForPie = 0;
+  const liveGtCounts = { 'Low GT': 0, 'Intermediate GT': 0, 'High GT': 0 };
   for (const sample of samples) {
     const fallback = confirmedBySample.get(sample.id);
     const normalized = normalizeGTClass(
@@ -168,17 +211,17 @@ export async function getSessionSummaryData(sessionId: string) {
     );
 
     if (normalized !== 'Null') {
-      gtCounts[normalized]++;
-      totalForPie++;
+      liveGtCounts[normalized]++;
     }
   }
 
-  const gtDistributionPct = Object.fromEntries(
-    Object.entries(gtCounts).map(([k, v]) => [
-      k,
-      totalForPie > 0 ? Math.round((v / totalForPie) * 100) : 0,
-    ])
-  );
+  const persistedGt = report?.gt_distribution
+    ? JSON.parse(report.gt_distribution) as Record<string, number>
+    : null;
+
+  const hasLiveGtData = Object.values(liveGtCounts).some((value) => value > 0);
+  const gtCounts = hasLiveGtData ? liveGtCounts : (persistedGt ?? liveGtCounts);
+  const gtDistributionPct = distributionCountsToPct(gtCounts);
 
   return {
     session,
@@ -194,4 +237,60 @@ export async function getSessionSummaryData(sessionId: string) {
     asvDistribution,
     gtDistributionPct,
   };
+}
+
+export async function exportSessionSummaryCsv(sessionId: string): Promise<{ fileUri: string; fileName: string }> {
+  const report = await reportRepo.getBySession(sessionId) ?? await generateReport(sessionId);
+  const summary = await getSessionSummaryData(sessionId);
+
+  const fileName = `alkasense-session-${sessionId}-summary.csv`;
+  const directory = `${FileSystem.documentDirectory ?? ''}alkasense-reports/`;
+  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+
+  const csvRows: Array<Array<string | number | boolean | null | undefined>> = [
+    ['section', 'item', 'value', 'details'],
+    ['report', 'session_id', summary.session.id, summary.session.name],
+    ['report', 'generated_at', report.created_at, report.upload_status],
+    ['stats', 'total', summary.stats.total, ''],
+    ['stats', 'classified', summary.stats.classified, ''],
+    ['stats', 'rejected', summary.stats.rejected, ''],
+    ['stats', 'corrections', summary.stats.corrections, ''],
+    ['', '', '', ''],
+    ['asv_distribution', '1', summary.asvDistribution[0], ''],
+    ['asv_distribution', '2', summary.asvDistribution[1], ''],
+    ['asv_distribution', '3', summary.asvDistribution[2], ''],
+    ['asv_distribution', '4', summary.asvDistribution[3], ''],
+    ['asv_distribution', '5', summary.asvDistribution[4], ''],
+    ['asv_distribution', '6', summary.asvDistribution[5], ''],
+    ['asv_distribution', '7', summary.asvDistribution[6], ''],
+    ['', '', '', ''],
+    ['gt_distribution_pct', 'Low GT', summary.gtDistributionPct['Low GT'] ?? 0, ''],
+    ['gt_distribution_pct', 'Intermediate GT', summary.gtDistributionPct['Intermediate GT'] ?? 0, ''],
+    ['gt_distribution_pct', 'High GT', summary.gtDistributionPct['High GT'] ?? 0, ''],
+    ['', '', '', ''],
+    ['sample', 'sample_identifier', 'asv_score', 'gt_class'],
+    ...summary.samples.map((sample) => [
+      'sample',
+      sample.sample_identifier,
+      sample.asv_score,
+      sample.gt_class,
+    ]),
+  ];
+
+  const csvContent = toCsv(csvRows);
+  const fileUri = `${directory}${fileName}`;
+  await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  const canShare = await Sharing.isAvailableAsync();
+  if (canShare) {
+    await Sharing.shareAsync(fileUri, {
+      mimeType: 'text/csv',
+      dialogTitle: 'Export Batch Summary CSV',
+      UTI: 'public.comma-separated-values-text',
+    });
+  }
+
+  return { fileUri, fileName };
 }

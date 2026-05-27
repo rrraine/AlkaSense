@@ -11,6 +11,19 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:8000';
 const evaluationRepo = new EvaluationRepository();
 const sampleRepo = new SampleRepository();
 
+type GTClass = 'Null' | 'Low GT' | 'Intermediate GT' | 'High GT';
+
+function normalizePredictedGTClass(value: string | null | undefined): GTClass {
+  if (!value) return 'Null';
+  if (value === 'High GT' || value === 'Intermediate GT' || value === 'Low GT') {
+    return value;
+  }
+  if (value.startsWith('High GT')) return 'High GT';
+  if (value.startsWith('Intermediate GT')) return 'Intermediate GT';
+  if (value.startsWith('Low GT')) return 'Low GT';
+  return 'Null';
+}
+
 export type ExplainBullet = { label: string; text: string };
 
 export type AIExplainResult = {
@@ -72,7 +85,10 @@ export async function requestAIDraft({
     if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
     const result = await response.json();
-    return result;
+    return {
+      ...result,
+      predicted_gt_class: normalizePredictedGTClass(result.predicted_gt_class),
+    };
 
   } catch (err) {
     console.warn('requestAIDraft failed, using mock:', err);
@@ -80,7 +96,7 @@ export async function requestAIDraft({
     // Fallback mock so the app never crashes
     return {
       predicted_asv_score: 5,
-      predicted_gt_class: 'Intermediate GT (70-74°C)',
+      predicted_gt_class: 'Intermediate GT',
       raw_confidence: 72,
       calibrated_certainty: 58,
       hasConfidenceWarning: true,

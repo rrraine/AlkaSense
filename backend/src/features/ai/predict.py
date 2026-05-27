@@ -29,11 +29,11 @@ def preprocess_image(image_bytes: bytes) -> np.ndarray:
 
 def score_to_gt_class(score: int) -> str:
     if score <= 2:
-        return "High GT (>74°C)"
+        return "High GT"
     elif score <= 5:
-        return "Intermediate GT (70-74°C)"
+        return "Intermediate GT"
     else:
-        return "Low GT (<70°C)"
+        return "Low GT"
 
 @router.post("/predict")
 async def predict(

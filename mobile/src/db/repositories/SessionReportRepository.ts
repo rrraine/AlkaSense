@@ -88,9 +88,11 @@ export class SessionReportRepository {
     return await this.getById(id);
   }
 
+  
+
   async getById(id: string): Promise<SessionReport> {
     const row = await db.getFirstAsync<SessionReport>(
-      `SELECT * FROM session_reports WHERE id = ?`,
+      `SELECT session_reports.*, end_time AS created_at FROM session_reports WHERE id = ?`,
       [id]
     );
     if (!row) throw new Error(`SessionReport ${id} not found`);
@@ -99,7 +101,7 @@ export class SessionReportRepository {
 
   async getBySession(sessionId: string): Promise<SessionReport | null> {
     const row = await db.getFirstAsync<SessionReport>(
-      `SELECT * FROM session_reports WHERE session_id = ? ORDER BY created_at DESC LIMIT 1`,
+      `SELECT session_reports.*, end_time AS created_at FROM session_reports WHERE session_id = ? ORDER BY end_time DESC LIMIT 1`,
       [sessionId]
     );
     return row ?? null;
