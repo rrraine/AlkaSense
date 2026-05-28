@@ -205,11 +205,9 @@ export default function SamplePreviewScreen({ navigation, route }: any) {
         <View style={styles.metadataCard}>
           <Text style={styles.metadataCardTitle}>Evaluation Details</Text>
           <View style={styles.evalDetailRow}>
-            <Text style={styles.evalDetailIcon}>👤</Text>
             <Text style={styles.evalDetailText}>Evaluator:  {evaluator}</Text>
           </View>
           <View style={styles.evalDetailRow}>
-            <Text style={styles.evalDetailIcon}>📅</Text>
             <Text style={styles.evalDetailText}>Date:  May 15, 2026 at {time}</Text>
           </View>
         </View>

@@ -128,7 +128,7 @@ export default function UploadReportScreen({ navigation, route }: any) {
 
         {error && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>⚠ {error}</Text>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
@@ -181,7 +181,7 @@ export default function UploadReportScreen({ navigation, route }: any) {
           </View>
         ) : (
           <TouchableOpacity style={[styles.footerBtn, styles.footerBtnGreen]} onPress={handleUpload}>
-            <Text style={[styles.footerBtnLabel, styles.footerBtnTextWhite]}>⬆ Upload Report to PhilRice Server</Text>
+            <Text style={[styles.footerBtnLabel, styles.footerBtnTextWhite]}>Upload Report to PhilRice Server</Text>
           </TouchableOpacity>
         )}
       </View>

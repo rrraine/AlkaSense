@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
@@ -94,17 +94,15 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Image Capture</Text>
-      </View>
 
-      {/* INFO */}
-      <View style={styles.infoBanner}>
-        <Text style={styles.infoLine1}>
-          {sample_identifier} • {variety} • {grainCount} grains
-        </Text>
-
-        <Text style={styles.infoLine2}>
-          Session: {session}
-        </Text>
+        <View style={styles.infoBanner}>
+          <Text style={styles.infoLine1}>
+            {sample_identifier} • {variety} • {grainCount} grains
+          </Text>
+          <Text style={styles.infoLine2}>
+            Session: {session}
+          </Text>
+        </View>
       </View>
 
       {/* CAMERA */}
@@ -216,20 +214,18 @@ export default function ImageCaptureScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0D1117',
+    backgroundColor: '#F3F4F6',
   },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: GREEN,
     paddingTop: 54,
-    paddingBottom: 14,
+    paddingBottom: 16,
     paddingHorizontal: 16,
-    gap: 12,
   },
 
   backButton: {
-    padding: 4,
+    marginBottom: 8,
   },
 
   backArrow: {
@@ -241,33 +237,35 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
+    marginBottom: 10,
   },
 
   infoBanner: {
-    backgroundColor: '#161B22',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
-    marginHorizontal: 16,
-    padding: 12,
-    marginBottom: 16,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#21262D',
+    borderColor: 'rgba(255,255,255,0.25)',
   },
 
   infoLine1: {
-    color: '#E6EDF3',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '500',
   },
 
   infoLine2: {
-    color: '#8B949E',
-    fontSize: 13,
+    color: '#DCFCE7',
+    fontSize: 12,
     marginTop: 3,
+    opacity: 0.85,
   },
 
   cameraSection: {
     flex: 1,
+    backgroundColor: '#111827',
     paddingHorizontal: 16,
+    paddingTop: 14,
   },
 
   pillRow: {
@@ -280,12 +278,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#21262D',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderWidth: 1,
-    borderColor: '#30363D',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
 
   pillIcon: {
@@ -295,7 +293,7 @@ const styles = StyleSheet.create({
   },
 
   pillText: {
-    color: '#E6EDF3',
+    color: '#E5E7EB',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -309,7 +307,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#444C56',
+    borderColor: 'rgba(255,255,255,0.3)',
     borderStyle: 'dashed',
     overflow: 'hidden',
   },
@@ -329,24 +327,24 @@ const styles = StyleSheet.create({
   },
 
   placeholderText: {
-    color: '#C9D1D9',
+    color: '#D1D5DB',
     fontSize: 15,
     fontWeight: '500',
   },
 
   guidelinesCard: {
-    backgroundColor: '#161B22',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#21262D',
-    marginTop: 12,
+    borderTopWidth: 1,
+    borderColor: '#E5E7EB',
+    marginTop: 0,
   },
 
   guidelinesTitle: {
-    color: '#E6EDF3',
-    fontSize: 14,
+    color: '#111827',
+    fontSize: 13,
     fontWeight: '700',
     marginBottom: 10,
   },
@@ -355,7 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   checkbox: {
@@ -363,10 +361,10 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#30363D',
+    borderColor: '#D1FAE5',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#21262D',
+    backgroundColor: '#F0FDF4',
   },
 
   checkmark: {
@@ -376,8 +374,8 @@ const styles = StyleSheet.create({
   },
 
   guidelineText: {
-    color: '#8B949E',
-    fontSize: 13,
+    color: '#6B7280',
+    fontSize: 12,
     flex: 1,
   },
 
@@ -385,21 +383,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     padding: 14,
-    backgroundColor: '#161B22',
+    paddingBottom: 28,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
 
   galleryBtn: {
     flex: 1,
-    backgroundColor: '#21262D',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
   },
 
   galleryText: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontWeight: '600',
+    fontSize: 15,
   },
 
   captureBtn: {
@@ -414,5 +418,6 @@ const styles = StyleSheet.create({
   captureText: {
     color: '#FFFFFF',
     fontWeight: '700',
+    fontSize: 15,
   },
 });

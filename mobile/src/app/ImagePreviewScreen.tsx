@@ -181,7 +181,7 @@ export default function ImagePreviewScreen({ navigation, route }: any) {
         {hasImage && !protocolReady && (
           <View style={styles.gateHint}>
             <Text style={styles.gateHintText}>
-              🔒 Confirm all protocol conditions to enable submission
+              Complete all protocol conditions to enable submission
             </Text>
           </View>
         )}

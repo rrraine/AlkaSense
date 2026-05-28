@@ -210,7 +210,7 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <View style={styles.reportBanner}>
-          <View style={styles.reportIconBox}><Text style={{ fontSize: 18 }}>📄</Text></View>
+          <View style={styles.reportIconBox}><Text style={{ fontSize: 14, fontWeight: '700', color: '#15803D' }}>RPT</Text></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.reportBannerTitle}>
               {reportExists ? 'Report Generated' : 'Batch Summary Report'}
@@ -268,7 +268,7 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
         {!allConfirmed && !reportExists && (
           <View style={styles.hintBanner}>
             <Text style={styles.hintText}>
-              ⚠ {stats.total - stats.classified} sample(s) not yet confirmed. All samples must be confirmed before generating a report.
+              {stats.total - stats.classified} sample(s) not yet confirmed. All samples must be confirmed before generating a report.
             </Text>
           </View>
         )}
@@ -296,16 +296,15 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
             >
               {exporting
                 ? <ActivityIndicator color="#fff" style={{ marginRight: 6 }} />
-                : <Text style={styles.exportIcon}>⬇</Text>}
+                : null}
               <Text style={styles.exportBtnText}>{exporting ? 'Exporting…' : 'Export CSV'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.uploadBtn, report?.upload_status === 'UPLOADED' && { opacity: 0.5 }]}
               onPress={() => navigation.navigate('UploadReport', { sessionId })}
             >
-              <Text style={styles.uploadIcon}>⬆</Text>
               <Text style={styles.uploadBtnText}>
-                {report?.upload_status === 'UPLOADED' ? 'Uploaded ✓' : 'Upload Report'}
+                {report?.upload_status === 'UPLOADED' ? 'Uploaded' : 'Upload Report'}
               </Text>
             </TouchableOpacity>
           </>
@@ -318,7 +317,7 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
           >
             {generating
               ? <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
-              : <Text style={styles.generateIcon}>📄</Text>}
+              : null}
             <Text style={styles.generateBtnText}>
               {generating
                 ? 'Generating Report…'

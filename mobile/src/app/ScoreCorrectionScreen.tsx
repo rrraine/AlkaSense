@@ -176,7 +176,7 @@ export default function ScoreCorrectionScreen({ navigation, route }: any) {
 
         <View style={styles.remarkCard}>
           <View style={styles.remarkHeaderRow}>
-            <Text style={styles.remarkWarningIcon}>⚠</Text>
+            <Text style={styles.remarkWarningIcon}>!</Text>
             <Text style={styles.remarkTitle}>Correction Remark</Text>
           </View>
           {hasChange

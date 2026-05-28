@@ -260,55 +260,44 @@ export async function uploadReport(sessionId: string): Promise<void> {
 
   try {
     const token = await firebaseUser.getIdToken();
-    let responseData: any;
+
+    const formData = new FormData();
+    formData.append('session_id', sessionId);
+    formData.append('report_id', report.id);
+    formData.append('total_samples', String(report.total_samples));
+    formData.append('total_classified', String(report.total_classified));
+    formData.append('total_corrections', String(report.total_corrections));
+    formData.append('asv_distribution', report.asv_distribution);
+    formData.append('gt_distribution', report.gt_distribution);
 
     if (report.csv_file_path) {
       const fileInfo = await FileSystem.getInfoAsync(report.csv_file_path);
       if (fileInfo.exists) {
-        const formData = new FormData();
-        formData.append('session_id', sessionId);
-        formData.append('report_id', report.id);
-        formData.append('total_samples', String(report.total_samples));
-        formData.append('total_classified', String(report.total_classified));
-        formData.append('total_corrections', String(report.total_corrections));
-        formData.append('asv_distribution', report.asv_distribution);
-        formData.append('gt_distribution', report.gt_distribution);
         formData.append('csv_file', {
           uri: report.csv_file_path,
           name: `report-${report.id}.csv`,
           type: 'text/csv',
         } as any);
-
-        responseData = await apiFetch('/reports/upload', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
+        console.log('[ReportService] Attaching CSV:', report.csv_file_path);
+      } else {
+        console.warn('[ReportService] CSV path recorded but file not found:', report.csv_file_path);
       }
+    } else {
+      console.log('[ReportService] No CSV file; uploading metadata only.');
     }
 
-    if (!responseData) {
-      responseData = await apiFetch('/reports/upload', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: {
-          session_id: sessionId,
-          report_id: report.id,
-          total_samples: report.total_samples,
-          total_classified: report.total_classified,
-          total_corrections: report.total_corrections,
-          asv_distribution: JSON.parse(report.asv_distribution),
-          gt_distribution: JSON.parse(report.gt_distribution),
-        },
-      });
-    }
+    const responseData = await apiFetch('/reports/upload', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
 
     const serverId: string = responseData?.id ?? responseData?.server_id ?? report.id;
     await reportRepo.markUploaded(report.id, serverId);
     console.log('[ReportService] Report uploaded successfully:', serverId);
-  } catch (err) {
+  } catch (err: any) {
     await reportRepo.markFailed(report.id);
-    console.error('[ReportService] Upload failed:', err);
+    console.error('[ReportService] Upload failed —', err?.message ?? err);
     throw err;
   }
 }

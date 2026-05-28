@@ -285,17 +285,49 @@ export class SessionRepository {
 
   // ───────────────────────────────────────────────────────────
   // Delete Session
+  // Deletes in dependency order so FK enforcement stays ON.
+  // Sessions → samples → grain_images cascade automatically
+  // once the non-cascading children (evaluation_records,
+  // rejection_log, reference_cases) are cleared first.
+  // session_reports and correction_log have no FK constraint
+  // on session_id so they are cleaned up last for hygiene.
   // ───────────────────────────────────────────────────────────
 
   async delete(id: string): Promise<void> {
-
+    // 1. reference_cases — FK to sessions, samples, grain_images, eval_records
     await db.runAsync(
-      `
-      DELETE FROM sessions
-      WHERE id = ?
-      `,
+      `DELETE FROM reference_cases WHERE session_id = ?`,
       [id]
     );
+
+    // 2. evaluation_records — FK to samples (no CASCADE); also removes
+    //    observation_profiles and draft_scores via their CASCADE FKs
+    await db.runAsync(
+      `DELETE FROM evaluation_records
+       WHERE sample_id IN (SELECT id FROM samples WHERE session_id = ?)`,
+      [id]
+    );
+
+    // 3. rejection_log — FK to grain_images (no CASCADE)
+    await db.runAsync(
+      `DELETE FROM rejection_log
+       WHERE grain_image_id IN (
+         SELECT gi.id FROM grain_images gi
+         JOIN samples s ON gi.sample_id = s.id
+         WHERE s.session_id = ?
+       )`,
+      [id]
+    );
+
+    // 4. sessions DELETE → samples CASCADE → grain_images CASCADE
+    await db.runAsync(
+      `DELETE FROM sessions WHERE id = ?`,
+      [id]
+    );
+
+    // 5. Orphan cleanup — no FK constraints, but belong to this session
+    await db.runAsync(`DELETE FROM session_reports WHERE session_id = ?`, [id]);
+    await db.runAsync(`DELETE FROM correction_log WHERE session_id = ?`, [id]);
   }
 
   // ───────────────────────────────────────────────────────────

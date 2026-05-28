@@ -207,7 +207,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
               Batch {session?.batch_identifier}
             </Text>
             <View style={styles.metaCombined}>
-              <Text style={styles.metaText}>📅 {evaluationDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}{isDateOverridden ? ' ⚡' : ''}</Text>
+              <Text style={styles.metaText}>{evaluationDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}{isDateOverridden ? ' (Override)' : ''}</Text>
               <View style={[styles.metaBadge, session?.status === 'Active' ? styles.metaBadgeActive : styles.metaBadgeCompleted]}>
                 <Text style={styles.metaBadgeText}>{session?.status}</Text>
               </View>
@@ -246,7 +246,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
 
             <View style={styles.actionRow}>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('BatchSummary', { sessionId })}>
-                <Text style={styles.secondaryBtnText}>📊{'\n'}View Summary</Text>
+                <Text style={styles.secondaryBtnText}>View Summary</Text>
               </TouchableOpacity>
             </View>
 
@@ -272,7 +272,7 @@ export default function SessionProgressScreen({ navigation, route }: any) {
           <View style={menuStyles.sheet}>
             <Text style={menuStyles.title}>Session Options</Text>
             <TouchableOpacity style={menuStyles.item} onPress={() => { setMenuVisible(false); setShowDatePicker(true); }}>
-              <Text style={menuStyles.itemIcon}>📅</Text>
+              <Text style={menuStyles.itemIcon}>Cal</Text>
               <View style={menuStyles.itemBody}>
                 <Text style={menuStyles.itemTitle}>Evaluation Date Manual Override</Text>
                 <Text style={menuStyles.itemSubtitle}>Backdate the evaluation date for this session.</Text>

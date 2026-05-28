@@ -389,7 +389,7 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
           disabled={!isComplete}
           activeOpacity={0.8}
         >
-          <Text style={styles.primaryBtnText}>✦  Save and Request AI Draft</Text>
+          <Text style={styles.primaryBtnText}>Save and Request AI Draft</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

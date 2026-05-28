@@ -8,9 +8,10 @@ import {
   TextInput,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllSessions, getActiveSession } from '../services/SessionService';
+import { getAllSessions, getActiveSession, deleteSession } from '../services/SessionService';
 import type { Session } from '../db/repositories/SessionRepository';
 
 const GREEN = '#008236';
@@ -95,7 +96,7 @@ export default function DashboardScreen({ navigation }: any) {
           style={styles.logoutBtn}
           onPress={() => navigation.navigate('Login')}
         >
-          <Text style={styles.logoutText}>⇥ Logout</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
 
@@ -118,7 +119,7 @@ export default function DashboardScreen({ navigation }: any) {
         {hasActiveSession && (
           <View style={styles.activeSessionBanner}>
             <Text style={styles.activeSessionBannerText}>
-              ⚠ You have an active session. Close it before creating a new one.
+              You have an active session. Close it before creating a new one.
             </Text>
           </View>
         )}
@@ -148,6 +149,27 @@ export default function DashboardScreen({ navigation }: any) {
                   sessionId: session.id,
                 })
               }
+              onDelete={session.status === 'Completed' ? () => {
+                Alert.alert(
+                  'Delete Session',
+                  `Delete "${session.name}" and all its records? This cannot be undone.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await deleteSession(session.id);
+                          setSessions((prev) => prev.filter((s) => s.id !== session.id));
+                        } catch (err: any) {
+                          Alert.alert('Error', err?.message ?? 'Failed to delete session.');
+                        }
+                      },
+                    },
+                  ]
+                );
+              } : undefined}
             />
           ))
         )}
@@ -182,9 +204,11 @@ export default function DashboardScreen({ navigation }: any) {
 function SessionCard({
   session,
   onPress,
+  onDelete,
 }: {
   session: Session;
   onPress: () => void;
+  onDelete?: () => void;
 }) {
   const isActive = session.status === 'Active';
 
@@ -206,8 +230,19 @@ function SessionCard({
       <View style={styles.cardDivider} />
 
       <View style={styles.cardBottom}>
-        <Text style={styles.cardMeta}>📅 {formatDate(session.evaluation_date)}</Text>
-        <Text style={styles.cardChevron}>›</Text>
+        <Text style={styles.cardMeta}>{formatDate(session.evaluation_date)}</Text>
+        <View style={styles.cardBottomRight}>
+          {onDelete && (
+            <TouchableOpacity
+              onPress={onDelete}
+              style={styles.deleteBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.deleteBtnText}>Delete</Text>
+            </TouchableOpacity>
+          )}
+          <Text style={styles.cardChevron}>›</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -347,6 +382,17 @@ const styles = StyleSheet.create({
   cardBottom: { flexDirection: 'row', alignItems: 'center' },
   cardMeta: { fontSize: 13, color: '#6B7280', flex: 1 },
   cardChevron: { fontSize: 20, color: '#9CA3AF', fontWeight: '300' },
+
+  cardBottomRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deleteBtn: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  deleteBtnText: { fontSize: 12, fontWeight: '600', color: '#DC2626' },
 
   footer: {
     position: 'absolute',

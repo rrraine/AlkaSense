@@ -206,7 +206,7 @@ export default function CreateSessionScreen({ navigation }: any) {
         {isRegisterBlocked && (
           <View style={styles.activeBanner}>
             <Text style={styles.activeBannerText}>
-              ⚠ An active session already exists. Close it before creating a new one.
+              An active session already exists. Close it before creating a new one.
             </Text>
           </View>
         )}
@@ -428,7 +428,7 @@ export default function CreateSessionScreen({ navigation }: any) {
                 setShowDatePicker(true);
               }}
             >
-              <Text style={styles.menuItemIcon}>📅</Text>
+              <Text style={styles.menuItemIcon}>Cal</Text>
               <View style={styles.menuItemBody}>
                 <Text style={styles.menuItemTitle}>
                   Evaluation Date Manual Override
