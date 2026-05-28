@@ -11,10 +11,6 @@ export async function initDatabase(): Promise<void> {
   await runMigrations();
 }
 
-/**
- * Idempotent migrations for schema changes that CREATE TABLE IF NOT EXISTS
- * cannot retroactively apply to existing databases.
- */
 async function runMigrations(): Promise<void> {
 
   // ── Migration 001: relax NOT NULL on evaluation_records.grain_image_id ──────
@@ -48,12 +44,10 @@ async function runMigrations(): Promise<void> {
   }
 
   // ── Migration 002: replace global UNIQUE on sample_identifier with ──────────
-  //    composite UNIQUE (session_id, sample_identifier) so the same identifier
-  //    can be reused across different sessions / accounts.
+  //    composite UNIQUE (session_id, sample_identifier)
   const sampleIndexes = await db.getAllAsync<{ name: string; unique: number }>(
     `PRAGMA index_list(samples)`
   );
-  // SQLite names auto-generated unique indexes as "sqlite_autoindex_<table>_<n>"
   const hasGlobalUnique = sampleIndexes.some(
     (idx) => idx.unique === 1 && idx.name.startsWith('sqlite_autoindex_samples')
   );
@@ -88,6 +82,136 @@ async function runMigrations(): Promise<void> {
       PRAGMA foreign_keys = ON;
     `);
     console.log('[DB Migration 002] samples.sample_identifier is now unique per session only.');
+  }
+
+  // ── Migration 003: session_reports — Module 4 upload lifecycle ───────────────
+  //    Adds upload_attempts, last_upload_attempt_at, uploaded_at, server_id,
+  //    renames timestamp field to generated_at, and changes upload_status
+  //    CHECK constraint to NOT_UPLOADED|UPLOADING|UPLOADED|FAILED.
+  const srCols = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(session_reports)`
+  );
+  if (srCols.length > 0) {
+    const hasUploadAttempts = srCols.some((c) => c.name === 'upload_attempts');
+    if (!hasUploadAttempts) {
+      const hasEndTime = srCols.some((c) => c.name === 'end_time');
+      const timestampSrc = hasEndTime ? 'end_time' : "datetime('now')";
+
+      await db.execAsync(`PRAGMA foreign_keys = OFF;`);
+      await db.execAsync(`
+        CREATE TABLE session_reports_m4 (
+          id                      TEXT PRIMARY KEY,
+          session_id              TEXT NOT NULL,
+          evaluator_id            TEXT NOT NULL,
+          total_samples           INTEGER NOT NULL DEFAULT 0,
+          total_classified        INTEGER NOT NULL DEFAULT 0,
+          total_rejected          INTEGER NOT NULL DEFAULT 0,
+          total_corrections       INTEGER NOT NULL DEFAULT 0,
+          asv_distribution        TEXT NOT NULL DEFAULT '{}',
+          gt_distribution         TEXT NOT NULL DEFAULT '{}',
+          pdf_file_path           TEXT,
+          csv_file_path           TEXT,
+          upload_status           TEXT NOT NULL DEFAULT 'NOT_UPLOADED'
+                                  CHECK (upload_status IN (
+                                    'NOT_UPLOADED','UPLOADING','UPLOADED','FAILED'
+                                  )),
+          upload_attempts         INTEGER NOT NULL DEFAULT 0,
+          last_upload_attempt_at  TEXT,
+          uploaded_at             TEXT,
+          server_id               TEXT,
+          generated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      await db.execAsync(`
+        INSERT OR IGNORE INTO session_reports_m4 (
+          id, session_id, evaluator_id,
+          total_samples, total_classified, total_rejected, total_corrections,
+          asv_distribution, gt_distribution,
+          pdf_file_path, csv_file_path,
+          upload_status, generated_at
+        )
+        SELECT
+          id, session_id, evaluator_id,
+          COALESCE(total_samples, 0),
+          COALESCE(total_classified, 0),
+          COALESCE(total_rejected, 0),
+          COALESCE(total_corrections, 0),
+          COALESCE(asv_distribution, '{}'),
+          COALESCE(gt_distribution, '{}'),
+          pdf_file_path, csv_file_path,
+          CASE COALESCE(upload_status, 'Generated')
+            WHEN 'Generated' THEN 'NOT_UPLOADED'
+            WHEN 'Uploaded'  THEN 'UPLOADED'
+            WHEN 'Failed'    THEN 'FAILED'
+            ELSE 'NOT_UPLOADED'
+          END,
+          COALESCE(${timestampSrc}, datetime('now'))
+        FROM session_reports;
+      `);
+      await db.execAsync(`DROP TABLE session_reports;`);
+      await db.execAsync(`ALTER TABLE session_reports_m4 RENAME TO session_reports;`);
+      await db.execAsync(`PRAGMA foreign_keys = ON;`);
+      console.log('[DB Migration 003] session_reports upgraded with Module 4 upload lifecycle fields.');
+    }
+  }
+
+  // ── Migration 004: correction_log — Module 4 sync tracking ──────────────────
+  //    Adds confirmed_score_id, deviation_remark, synced, sync_attempts,
+  //    synced_at. Normalises evaluator column name to evaluator_id.
+  const clCols = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(correction_log)`
+  );
+  if (clCols.length > 0) {
+    const hasSynced = clCols.some((c) => c.name === 'synced');
+    if (!hasSynced) {
+      const hasEvalId = clCols.some((c) => c.name === 'evaluator_id');
+      const hasSubmittingId = clCols.some((c) => c.name === 'submitting_evaluator_id');
+      const evalIdSrc = hasEvalId
+        ? 'evaluator_id'
+        : hasSubmittingId
+        ? 'submitting_evaluator_id'
+        : null;
+
+      const hasSubmittedAt = clCols.some((c) => c.name === 'submitted_at');
+      const createdAtSrc = hasSubmittedAt ? 'submitted_at' : "datetime('now')";
+
+      await db.execAsync(`PRAGMA foreign_keys = OFF;`);
+      await db.execAsync(`
+        CREATE TABLE correction_log_m4 (
+          id                    TEXT PRIMARY KEY,
+          session_id            TEXT NOT NULL,
+          sample_id             TEXT NOT NULL,
+          evaluator_id          TEXT NOT NULL,
+          original_asv_score    INTEGER NOT NULL,
+          corrected_asv_score   INTEGER NOT NULL DEFAULT 0,
+          correction_remark     TEXT NOT NULL,
+          confirmed_score_id    TEXT,
+          deviation_remark      TEXT,
+          synced                INTEGER NOT NULL DEFAULT 0,
+          sync_attempts         INTEGER NOT NULL DEFAULT 0,
+          created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+          synced_at             TEXT
+        );
+      `);
+      if (evalIdSrc) {
+        await db.execAsync(`
+          INSERT OR IGNORE INTO correction_log_m4 (
+            id, session_id, sample_id, evaluator_id,
+            original_asv_score, corrected_asv_score, correction_remark,
+            created_at
+          )
+          SELECT
+            id, session_id, sample_id, ${evalIdSrc},
+            original_asv_score, corrected_asv_score, correction_remark,
+            ${createdAtSrc}
+          FROM correction_log;
+        `);
+      }
+      await db.execAsync(`DROP TABLE correction_log;`);
+      await db.execAsync(`ALTER TABLE correction_log_m4 RENAME TO correction_log;`);
+      await db.execAsync(`PRAGMA foreign_keys = ON;`);
+      console.log('[DB Migration 004] correction_log upgraded with Module 4 sync fields.');
+    }
   }
 }
 
@@ -200,7 +324,7 @@ async function createTables(): Promise<void> {
     CREATE TABLE IF NOT EXISTS evaluation_records (
       id                TEXT PRIMARY KEY,
       sample_id         TEXT NOT NULL REFERENCES samples(id),
-      grain_image_id    TEXT NOT NULL REFERENCES grain_images(id),
+      grain_image_id    TEXT REFERENCES grain_images(id),
       evaluator_id      TEXT NOT NULL REFERENCES users(id),
       evaluation_notes  TEXT,
       status            TEXT NOT NULL DEFAULT 'For Evaluation'
@@ -277,59 +401,50 @@ async function createTables(): Promise<void> {
       draft_score_id          TEXT NOT NULL REFERENCES draft_scores(id)
     );
 
-    -- Session reports table
+    -- Session reports table (Module 4)
+    -- upload_status lifecycle: NOT_UPLOADED → UPLOADING → UPLOADED | FAILED
     CREATE TABLE IF NOT EXISTS session_reports (
-      id                    TEXT PRIMARY KEY,
-
-      -- Session snapshot
-      session_id            TEXT NOT NULL REFERENCES sessions(id),
-      session_name          TEXT NOT NULL,
-      evaluator_id          TEXT NOT NULL REFERENCES users(id),
-      evaluator_name        TEXT NOT NULL,
-      start_time            TEXT NOT NULL,
-      end_time              TEXT NOT NULL DEFAULT (datetime('now')),
-      total_duration        INTEGER NOT NULL DEFAULT 0,
-
-      -- Sample statistics
-      total_samples         INTEGER NOT NULL DEFAULT 0,
-      total_classified      INTEGER NOT NULL DEFAULT 0,
-      total_rejected        INTEGER NOT NULL DEFAULT 0,
-      total_corrections     INTEGER NOT NULL DEFAULT 0,
-
-      -- Distribution snapshots
-      asv_distribution      TEXT NOT NULL DEFAULT '{}',
-      gt_distribution       TEXT NOT NULL DEFAULT '{}',
-
-      -- Treatment parameters snapshot
-      koh_concentration     REAL NOT NULL,
-      incubation_duration   REAL NOT NULL,
-      incubation_temp       REAL NOT NULL,
-      protocol              TEXT NOT NULL DEFAULT 'IRRI Standard',
-
-      pdf_file_path         TEXT,
-      csv_file_path         TEXT,
-      upload_timestamp      TEXT,
-      upload_status         TEXT NOT NULL DEFAULT 'Generated'
-                            CHECK (upload_status IN (
-                              'Generated',
-                              'Uploaded',
-                              'Failed'
-                            ))
+      id                      TEXT PRIMARY KEY,
+      session_id              TEXT NOT NULL,
+      evaluator_id            TEXT NOT NULL,
+      total_samples           INTEGER NOT NULL DEFAULT 0,
+      total_classified        INTEGER NOT NULL DEFAULT 0,
+      total_rejected          INTEGER NOT NULL DEFAULT 0,
+      total_corrections       INTEGER NOT NULL DEFAULT 0,
+      asv_distribution        TEXT NOT NULL DEFAULT '{}',
+      gt_distribution         TEXT NOT NULL DEFAULT '{}',
+      pdf_file_path           TEXT,
+      csv_file_path           TEXT,
+      upload_status           TEXT NOT NULL DEFAULT 'NOT_UPLOADED'
+                              CHECK (upload_status IN (
+                                'NOT_UPLOADED',
+                                'UPLOADING',
+                                'UPLOADED',
+                                'FAILED'
+                              )),
+      upload_attempts         INTEGER NOT NULL DEFAULT 0,
+      last_upload_attempt_at  TEXT,
+      uploaded_at             TEXT,
+      server_id               TEXT,
+      generated_at            TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Correction log table
+    -- Correction log table (Module 4)
+    -- synced: 0 = pending backend sync, 1 = successfully synced
     CREATE TABLE IF NOT EXISTS correction_log (
-      id                        TEXT PRIMARY KEY,
-      session_id                TEXT NOT NULL REFERENCES sessions(id),
-      sample_id                 TEXT NOT NULL REFERENCES samples(id),
-      rice_variety              TEXT NOT NULL,
-      batch_identifier          TEXT NOT NULL,
-      sample_identifier         TEXT NOT NULL,
-      original_asv_score        INTEGER NOT NULL,
-      corrected_asv_score       INTEGER NOT NULL DEFAULT 0,
-      correction_remark         TEXT NOT NULL,
-      submitting_evaluator_id   TEXT NOT NULL REFERENCES users(id),
-      submitted_at              TEXT NOT NULL DEFAULT (datetime('now'))
+      id                    TEXT PRIMARY KEY,
+      session_id            TEXT NOT NULL,
+      sample_id             TEXT NOT NULL,
+      evaluator_id          TEXT NOT NULL,
+      original_asv_score    INTEGER NOT NULL,
+      corrected_asv_score   INTEGER NOT NULL DEFAULT 0,
+      correction_remark     TEXT NOT NULL,
+      confirmed_score_id    TEXT,
+      deviation_remark      TEXT,
+      synced                INTEGER NOT NULL DEFAULT 0,
+      sync_attempts         INTEGER NOT NULL DEFAULT 0,
+      created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+      synced_at             TEXT
     );
 
     -- Audit log table

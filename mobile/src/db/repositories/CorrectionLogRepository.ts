@@ -12,7 +12,12 @@ export interface CorrectionLog {
   original_asv_score: number;
   corrected_asv_score: number;
   correction_remark: string;
-  submitted_at: string;
+  confirmed_score_id: string | null;
+  deviation_remark: string | null;
+  synced: number;
+  sync_attempts: number;
+  created_at: string;
+  synced_at: string | null;
 }
 
 export interface CreateCorrectionLogPayload {
@@ -22,6 +27,8 @@ export interface CreateCorrectionLogPayload {
   original_asv_score: number;
   corrected_asv_score: number;
   correction_remark: string;
+  confirmed_score_id?: string;
+  deviation_remark?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -48,8 +55,9 @@ export class CorrectionLogRepository {
     await db.runAsync(
       `INSERT INTO correction_log (
         id, session_id, sample_id, evaluator_id,
-        original_asv_score, corrected_asv_score, correction_remark
-       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        original_asv_score, corrected_asv_score, correction_remark,
+        confirmed_score_id, deviation_remark
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         payload.session_id,
@@ -58,15 +66,10 @@ export class CorrectionLogRepository {
         payload.original_asv_score,
         payload.corrected_asv_score,
         payload.correction_remark,
+        payload.confirmed_score_id ?? null,
+        payload.deviation_remark ?? null,
       ]
     );
-
-    // DEBUG LOG | DELETE AFTERWARDS ---------------------------------
-    const inserted = await db.getFirstAsync(
-      `SELECT * FROM correction_log WHERE id = ?`,
-      [id]
-    );
-    console.log('✅ CORRECTION LOG SAVED TO SQLITE:', JSON.stringify(inserted, null, 2));
 
     return await this.getById(id);
   }
@@ -82,21 +85,42 @@ export class CorrectionLogRepository {
 
   async getBySession(sessionId: string): Promise<CorrectionLog[]> {
     return await db.getAllAsync<CorrectionLog>(
-      `SELECT * FROM correction_log WHERE session_id = ? ORDER BY submitted_at DESC`,
+      `SELECT * FROM correction_log WHERE session_id = ? ORDER BY created_at DESC`,
       [sessionId]
     );
   }
 
   async getBySample(sampleId: string): Promise<CorrectionLog[]> {
     return await db.getAllAsync<CorrectionLog>(
-      `SELECT * FROM correction_log WHERE sample_id = ? ORDER BY submitted_at DESC`,
+      `SELECT * FROM correction_log WHERE sample_id = ? ORDER BY created_at DESC`,
       [sampleId]
     );
   }
 
   async getAll(): Promise<CorrectionLog[]> {
     return await db.getAllAsync<CorrectionLog>(
-      `SELECT * FROM correction_log ORDER BY submitted_at DESC`
+      `SELECT * FROM correction_log ORDER BY created_at DESC`
+    );
+  }
+
+  async getUnsynced(): Promise<CorrectionLog[]> {
+    return await db.getAllAsync<CorrectionLog>(
+      `SELECT * FROM correction_log WHERE synced = 0 ORDER BY created_at ASC`
+    );
+  }
+
+  async markSynced(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `UPDATE correction_log SET synced = 1, synced_at = ? WHERE id = ?`,
+      [now, id]
+    );
+  }
+
+  async incrementSyncAttempts(id: string): Promise<void> {
+    await db.runAsync(
+      `UPDATE correction_log SET sync_attempts = sync_attempts + 1 WHERE id = ?`,
+      [id]
     );
   }
 

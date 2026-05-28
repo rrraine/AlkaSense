@@ -10,12 +10,26 @@ import { SessionRepository } from '../db/repositories/SessionRepository';
 import { SampleRepository } from '../db/repositories/SampleRepository';
 import { CorrectionLogRepository } from '../db/repositories/CorrectionLogRepository';
 import { EvaluationRepository } from '../db/repositories/EvaluationRepository';
+import { completeSession } from './SessionService';
 
 const reportRepo = new SessionReportRepository();
 const sessionRepo = new SessionRepository();
 const sampleRepo = new SampleRepository();
 const correctionRepo = new CorrectionLogRepository();
 const evaluationRepo = new EvaluationRepository();
+
+// Exponential backoff ceiling from SDD §2: 2s initial, doubles to 60s max.
+const BACKOFF_INITIAL_MS = 2_000;
+const BACKOFF_CEILING_MS = 60_000;
+
+function backoffDelayMs(attempt: number): number {
+  const delay = BACKOFF_INITIAL_MS * Math.pow(2, attempt);
+  return Math.min(delay, BACKOFF_CEILING_MS);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function normalizeGTClass(gt: string | null | undefined): 'Low GT' | 'Intermediate GT' | 'High GT' | 'Null' {
   if (!gt) return 'Null';
@@ -28,7 +42,6 @@ function normalizeGTClass(gt: string | null | undefined): 'Low GT' | 'Intermedia
 
 function buildConfirmedBySampleMap(confirmedEvals: Awaited<ReturnType<typeof evaluationRepo.getConfirmedEvaluations>>) {
   const confirmedBySample = new Map<string, { asv: number; gt: string | null }>();
-
   for (const ev of confirmedEvals) {
     if (!ev?.sample_id) continue;
     confirmedBySample.set(ev.sample_id, {
@@ -36,7 +49,6 @@ function buildConfirmedBySampleMap(confirmedEvals: Awaited<ReturnType<typeof eva
       gt: (ev.final_gt_class ?? ev.predicted_gt_class ?? null) as string | null,
     });
   }
-
   return confirmedBySample;
 }
 
@@ -63,23 +75,88 @@ function toCsv(rows: Array<Array<string | number | boolean | null | undefined>>)
   return rows.map((row) => row.map(escapeCsvValue).join(',')).join('\n');
 }
 
+function reportDirectory(): string {
+  return `${FileSystem.documentDirectory ?? ''}alkasense-reports/`;
+}
+
+// ─── CSV file generation ──────────────────────────────────────
+
+async function buildCsvForSession(
+  sessionId: string,
+  samples: Awaited<ReturnType<typeof sampleRepo.getBySession>>,
+  confirmedBySample: ReturnType<typeof buildConfirmedBySampleMap>,
+  asvDistribution: number[],
+  gtDistributionPct: Record<string, number>,
+  stats: { total: number; classified: number; rejected: number; corrections: number },
+  session: Awaited<ReturnType<typeof sessionRepo.getById>>,
+): Promise<string> {
+  const dir = reportDirectory();
+  await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+
+  const fileName = `alkasense-${sessionId}-report.csv`;
+  const fileUri = `${dir}${fileName}`;
+
+  const csvRows: Array<Array<string | number | boolean | null | undefined>> = [
+    ['section', 'item', 'value', 'details'],
+    ['report', 'session_id', session.id, session.name],
+    ['report', 'batch_identifier', session.batch_identifier, ''],
+    ['report', 'koh_concentration', session.koh_concentration, '%'],
+    ['report', 'incubation_duration', session.incubation_duration, 'h'],
+    ['report', 'incubation_temp', session.incubation_temp, '°C'],
+    ['report', 'generated_at', new Date().toISOString(), ''],
+    ['', '', '', ''],
+    ['stats', 'total_samples', stats.total, ''],
+    ['stats', 'classified', stats.classified, ''],
+    ['stats', 'rejected', stats.rejected, ''],
+    ['stats', 'corrections', stats.corrections, ''],
+    ['', '', '', ''],
+    ['asv_distribution', 'ASV 1', asvDistribution[0], ''],
+    ['asv_distribution', 'ASV 2', asvDistribution[1], ''],
+    ['asv_distribution', 'ASV 3', asvDistribution[2], ''],
+    ['asv_distribution', 'ASV 4', asvDistribution[3], ''],
+    ['asv_distribution', 'ASV 5', asvDistribution[4], ''],
+    ['asv_distribution', 'ASV 6', asvDistribution[5], ''],
+    ['asv_distribution', 'ASV 7', asvDistribution[6], ''],
+    ['', '', '', ''],
+    ['gt_distribution_pct', 'Low GT', gtDistributionPct['Low GT'] ?? 0, '%'],
+    ['gt_distribution_pct', 'Intermediate GT', gtDistributionPct['Intermediate GT'] ?? 0, '%'],
+    ['gt_distribution_pct', 'High GT', gtDistributionPct['High GT'] ?? 0, '%'],
+    ['', '', '', ''],
+    ['sample', 'sample_identifier', 'asv_score', 'gt_class'],
+    ...samples.map((sample) => {
+      const fallback = confirmedBySample.get(sample.id);
+      const asv = sample.asv_score >= 1 && sample.asv_score <= 7
+        ? sample.asv_score
+        : (fallback?.asv ?? 0);
+      const gt = sample.gt_class && sample.gt_class !== 'Null'
+        ? sample.gt_class
+        : normalizeGTClass(fallback?.gt);
+      return ['sample', sample.sample_identifier, asv, gt];
+    }),
+  ];
+
+  const csvContent = toCsv(csvRows);
+  await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  return fileUri;
+}
+
+// ─── Public API ───────────────────────────────────────────────
+
 /**
- * Generates and persists a session report to SQLite.
- * Business rules:
- * - Cannot generate if session is still Active
- * - All samples must be Confirmed before generating
+ * Generates the session report record and CSV file locally.
+ * - Cannot generate if session is Active.
+ * - All samples must be Confirmed.
+ * - Returns existing report if already generated.
  */
 export async function generateReport(sessionId: string): Promise<SessionReport> {
   const firebaseUser = auth.currentUser;
   if (!firebaseUser) throw new Error('Not authenticated');
 
-  // Business rule: session must be Completed
-  const session = await sessionRepo.getById(sessionId);
-  if (session.status === 'Active') {
-    throw new Error('Cannot generate report for an Active session. Complete the session first.');
-  }
-
-  // Business rule: all samples must be Confirmed
+  // Per SDD §4.2: "Generate Report" formally closes the active session and
+  // triggers report generation. All samples must be Confirmed first.
   const allSamples = await sampleRepo.getBySession(sessionId);
   const unconfirmed = allSamples.filter((s) => s.status !== 'Confirmed');
   if (unconfirmed.length > 0) {
@@ -88,92 +165,178 @@ export async function generateReport(sessionId: string): Promise<SessionReport> 
     );
   }
 
-  // Check if report already exists
+  const session = await sessionRepo.getById(sessionId);
+  if (session.status === 'Active') {
+    // Close the session atomically with report generation.
+    await completeSession(sessionId);
+  }
+
+  // Return existing report if present
   const existing = await reportRepo.getBySession(sessionId);
   if (existing) return existing;
 
-  // Compute statistics
-  const total = allSamples.length;
-  const confirmed = allSamples.filter((s) => s.status === 'Confirmed').length;
-  const rejected = 0; // samples with quality failure images — extend when needed
   const totalCorrections = await correctionRepo.countBySession(sessionId);
   const confirmedEvals = await evaluationRepo.getConfirmedEvaluations(sessionId);
   const confirmedBySample = buildConfirmedBySampleMap(confirmedEvals);
 
-  // ASV distribution
-  const asvDistribution: Record<string, number> = {};
-  const gtDistribution: Record<string, number> = {};
+  const asvDistCounts: Record<string, number> = {};
+  const gtDistCounts: Record<string, number> = {};
+  const asvChartData = Array(7).fill(0);
 
   for (const sample of allSamples) {
     const fallback = confirmedBySample.get(sample.id);
-    const score = String(
-      sample.asv_score >= 1 && sample.asv_score <= 7
-        ? sample.asv_score
-        : (fallback?.asv ?? 0)
-    );
-    asvDistribution[score] = (asvDistribution[score] ?? 0) + 1;
+    const score = sample.asv_score >= 1 && sample.asv_score <= 7
+      ? sample.asv_score
+      : (fallback?.asv ?? 0);
+
+    const scoreKey = String(score);
+    asvDistCounts[scoreKey] = (asvDistCounts[scoreKey] ?? 0) + 1;
+    if (score >= 1 && score <= 7) asvChartData[score - 1]++;
 
     const normalized = normalizeGTClass(
       sample.gt_class && sample.gt_class !== 'Null' ? sample.gt_class : fallback?.gt
     );
-
     if (normalized !== 'Null') {
-      gtDistribution[normalized] = (gtDistribution[normalized] ?? 0) + 1;
+      gtDistCounts[normalized] = (gtDistCounts[normalized] ?? 0) + 1;
     }
+  }
+
+  const stats = {
+    total: allSamples.length,
+    classified: allSamples.filter((s) => s.status === 'Confirmed').length,
+    rejected: 0,
+    corrections: totalCorrections,
+  };
+
+  const gtDistributionPct = distributionCountsToPct(gtDistCounts);
+
+  // Write CSV locally
+  let csvFilePath: string | undefined;
+  try {
+    csvFilePath = await buildCsvForSession(
+      sessionId, allSamples, confirmedBySample,
+      asvChartData, gtDistributionPct, stats, session,
+    );
+  } catch (csvErr) {
+    console.warn('[ReportService] CSV generation failed:', csvErr);
   }
 
   return await reportRepo.create({
     session_id: sessionId,
     evaluator_id: firebaseUser.uid,
-    total_samples: total,
-    total_classified: confirmed,
-    total_rejected: rejected,
-    total_corrections: totalCorrections,
-    asv_distribution: asvDistribution,
-    gt_distribution: gtDistribution,
+    total_samples: stats.total,
+    total_classified: stats.classified,
+    total_rejected: stats.rejected,
+    total_corrections: stats.corrections,
+    asv_distribution: asvDistCounts,
+    gt_distribution: gtDistCounts,
+    csv_file_path: csvFilePath,
   });
 }
 
 /**
- * Uploads the report to backend.
- * Business rules:
- * - Can only upload once (upload_status must be 'Generated')
- * - Session must be Completed
+ * Uploads the report to the backend.
+ * - Sets status to UPLOADING before the network call.
+ * - On success: UPLOADED + stores server_id.
+ * - On failure: FAILED, increments upload_attempts.
+ * - Network failure never interrupts local completion.
  */
 export async function uploadReport(sessionId: string): Promise<void> {
   const firebaseUser = auth.currentUser;
   if (!firebaseUser) throw new Error('Not authenticated');
 
-  const report = await reportRepo.getBySession(sessionId);
-  if (!report) throw new Error('No report found. Generate a report first.');
-  if (report.upload_status === 'Uploaded') {
+  let report = await reportRepo.getBySession(sessionId);
+  if (!report) {
+    report = await generateReport(sessionId);
+  }
+
+  // Per SDD §4.3: upload is gated only on a locally generated,
+  // not-yet-uploaded SessionReportRecord — session status is not a prerequisite.
+  if (report.upload_status === 'UPLOADED') {
     throw new Error('Report has already been uploaded.');
   }
 
-  const session = await sessionRepo.getById(sessionId);
-  if (session.status === 'Active') {
-    throw new Error('Cannot upload report for an Active session.');
+  await reportRepo.markUploading(report.id);
+
+  try {
+    const token = await firebaseUser.getIdToken();
+    let responseData: any;
+
+    if (report.csv_file_path) {
+      const fileInfo = await FileSystem.getInfoAsync(report.csv_file_path);
+      if (fileInfo.exists) {
+        const formData = new FormData();
+        formData.append('session_id', sessionId);
+        formData.append('report_id', report.id);
+        formData.append('total_samples', String(report.total_samples));
+        formData.append('total_classified', String(report.total_classified));
+        formData.append('total_corrections', String(report.total_corrections));
+        formData.append('asv_distribution', report.asv_distribution);
+        formData.append('gt_distribution', report.gt_distribution);
+        formData.append('csv_file', {
+          uri: report.csv_file_path,
+          name: `report-${report.id}.csv`,
+          type: 'text/csv',
+        } as any);
+
+        responseData = await apiFetch('/reports/upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+      }
+    }
+
+    if (!responseData) {
+      responseData = await apiFetch('/reports/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: {
+          session_id: sessionId,
+          report_id: report.id,
+          total_samples: report.total_samples,
+          total_classified: report.total_classified,
+          total_corrections: report.total_corrections,
+          asv_distribution: JSON.parse(report.asv_distribution),
+          gt_distribution: JSON.parse(report.gt_distribution),
+        },
+      });
+    }
+
+    const serverId: string = responseData?.id ?? responseData?.server_id ?? report.id;
+    await reportRepo.markUploaded(report.id, serverId);
+    console.log('[ReportService] Report uploaded successfully:', serverId);
+  } catch (err) {
+    await reportRepo.markFailed(report.id);
+    console.error('[ReportService] Upload failed:', err);
+    throw err;
   }
+}
 
-  const token = await firebaseUser.getIdToken();
+/**
+ * Retries all FAILED or NOT_UPLOADED reports with exponential backoff.
+ * Non-blocking: catches per-report errors and continues.
+ * Intended to be called from a background sync trigger.
+ */
+export async function retryFailedUploads(): Promise<void> {
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) return;
 
-  // Upload to backend
-  await apiFetch('/reports/upload', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: {
-      session_id: sessionId,
-      report_id: report.id,
-      total_samples: report.total_samples,
-      total_classified: report.total_classified,
-      total_corrections: report.total_corrections,
-      asv_distribution: JSON.parse(report.asv_distribution),
-      gt_distribution: JSON.parse(report.gt_distribution),
-    },
-  });
+  const pending = await reportRepo.getPendingUploads();
+  if (pending.length === 0) return;
 
-  // Mark as uploaded in SQLite
-  await reportRepo.markUploaded(report.id);
+  console.log(`[ReportService] Retrying ${pending.length} pending upload(s).`);
+
+  for (const report of pending) {
+    const delay = backoffDelayMs(report.upload_attempts);
+    await sleep(delay);
+
+    try {
+      await uploadReport(report.session_id);
+    } catch (err) {
+      console.warn(`[ReportService] Retry failed for report ${report.id}:`, err);
+    }
+  }
 }
 
 export async function getReportForSession(sessionId: string): Promise<SessionReport | null> {
@@ -189,27 +352,23 @@ export async function getSessionSummaryData(sessionId: string) {
 
   const confirmedBySample = buildConfirmedBySampleMap(confirmedEvals);
 
-  // Build ASV distribution for chart
   const asvDistribution = Array(7).fill(0);
   for (const sample of samples) {
     const fallback = confirmedBySample.get(sample.id);
     const score = sample.asv_score >= 1 && sample.asv_score <= 7
       ? sample.asv_score
       : (fallback?.asv ?? 0);
-
     if (score >= 1 && score <= 7) {
       asvDistribution[score - 1]++;
     }
   }
 
-  // GT distribution for pie chart
   const liveGtCounts = { 'Low GT': 0, 'Intermediate GT': 0, 'High GT': 0 };
   for (const sample of samples) {
     const fallback = confirmedBySample.get(sample.id);
     const normalized = normalizeGTClass(
       sample.gt_class && sample.gt_class !== 'Null' ? sample.gt_class : fallback?.gt
     );
-
     if (normalized !== 'Null') {
       liveGtCounts[normalized]++;
     }
@@ -219,7 +378,7 @@ export async function getSessionSummaryData(sessionId: string) {
     ? JSON.parse(report.gt_distribution) as Record<string, number>
     : null;
 
-  const hasLiveGtData = Object.values(liveGtCounts).some((value) => value > 0);
+  const hasLiveGtData = Object.values(liveGtCounts).some((v) => v > 0);
   const gtCounts = hasLiveGtData ? liveGtCounts : (persistedGt ?? liveGtCounts);
   const gtDistributionPct = distributionCountsToPct(gtCounts);
 
@@ -239,34 +398,41 @@ export async function getSessionSummaryData(sessionId: string) {
   };
 }
 
-export async function exportSessionSummaryCsv(sessionId: string): Promise<{ fileUri: string; fileName: string }> {
+/**
+ * Generates the CSV, shares via expo-sharing, and returns the file URI.
+ * Generates the report record first if not yet created.
+ */
+export async function exportSessionSummaryCsv(
+  sessionId: string,
+): Promise<{ fileUri: string; fileName: string }> {
   const report = await reportRepo.getBySession(sessionId) ?? await generateReport(sessionId);
   const summary = await getSessionSummaryData(sessionId);
 
-  const fileName = `alkasense-session-${sessionId}-summary.csv`;
-  const directory = `${FileSystem.documentDirectory ?? ''}alkasense-reports/`;
-  await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+  const fileName = `alkasense-${sessionId}-report.csv`;
+  const dir = reportDirectory();
+  await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+  const fileUri = `${dir}${fileName}`;
 
   const csvRows: Array<Array<string | number | boolean | null | undefined>> = [
     ['section', 'item', 'value', 'details'],
     ['report', 'session_id', summary.session.id, summary.session.name],
-    ['report', 'generated_at', report.created_at, report.upload_status],
+    ['report', 'generated_at', report.generated_at, report.upload_status],
     ['stats', 'total', summary.stats.total, ''],
     ['stats', 'classified', summary.stats.classified, ''],
     ['stats', 'rejected', summary.stats.rejected, ''],
     ['stats', 'corrections', summary.stats.corrections, ''],
     ['', '', '', ''],
-    ['asv_distribution', '1', summary.asvDistribution[0], ''],
-    ['asv_distribution', '2', summary.asvDistribution[1], ''],
-    ['asv_distribution', '3', summary.asvDistribution[2], ''],
-    ['asv_distribution', '4', summary.asvDistribution[3], ''],
-    ['asv_distribution', '5', summary.asvDistribution[4], ''],
-    ['asv_distribution', '6', summary.asvDistribution[5], ''],
-    ['asv_distribution', '7', summary.asvDistribution[6], ''],
+    ['asv_distribution', 'ASV 1', summary.asvDistribution[0], ''],
+    ['asv_distribution', 'ASV 2', summary.asvDistribution[1], ''],
+    ['asv_distribution', 'ASV 3', summary.asvDistribution[2], ''],
+    ['asv_distribution', 'ASV 4', summary.asvDistribution[3], ''],
+    ['asv_distribution', 'ASV 5', summary.asvDistribution[4], ''],
+    ['asv_distribution', 'ASV 6', summary.asvDistribution[5], ''],
+    ['asv_distribution', 'ASV 7', summary.asvDistribution[6], ''],
     ['', '', '', ''],
-    ['gt_distribution_pct', 'Low GT', summary.gtDistributionPct['Low GT'] ?? 0, ''],
-    ['gt_distribution_pct', 'Intermediate GT', summary.gtDistributionPct['Intermediate GT'] ?? 0, ''],
-    ['gt_distribution_pct', 'High GT', summary.gtDistributionPct['High GT'] ?? 0, ''],
+    ['gt_distribution_pct', 'Low GT', summary.gtDistributionPct['Low GT'] ?? 0, '%'],
+    ['gt_distribution_pct', 'Intermediate GT', summary.gtDistributionPct['Intermediate GT'] ?? 0, '%'],
+    ['gt_distribution_pct', 'High GT', summary.gtDistributionPct['High GT'] ?? 0, '%'],
     ['', '', '', ''],
     ['sample', 'sample_identifier', 'asv_score', 'gt_class'],
     ...summary.samples.map((sample) => [
@@ -278,19 +444,26 @@ export async function exportSessionSummaryCsv(sessionId: string): Promise<{ file
   ];
 
   const csvContent = toCsv(csvRows);
-  const fileUri = `${directory}${fileName}`;
   await FileSystem.writeAsStringAsync(fileUri, csvContent, {
     encoding: FileSystem.EncodingType.UTF8,
   });
 
-  const canShare = await Sharing.isAvailableAsync();
-  if (canShare) {
-    await Sharing.shareAsync(fileUri, {
-      mimeType: 'text/csv',
-      dialogTitle: 'Export Batch Summary CSV',
-      UTI: 'public.comma-separated-values-text',
-    });
+  // Persist path if different from stored
+  if (report.csv_file_path !== fileUri) {
+    await reportRepo.updateCsvPath(report.id, fileUri);
   }
+
+  const canShare = await Sharing.isAvailableAsync();
+  if (!canShare) {
+    console.warn('[ReportService] Sharing not available on this device.');
+    return { fileUri, fileName };
+  }
+
+  await Sharing.shareAsync(fileUri, {
+    mimeType: 'text/csv',
+    dialogTitle: 'Export Batch Summary CSV',
+    UTI: 'public.comma-separated-values-text',
+  });
 
   return { fileUri, fileName };
 }

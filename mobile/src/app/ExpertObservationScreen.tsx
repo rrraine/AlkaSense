@@ -327,13 +327,6 @@ export default function ExpertObservationScreen({ navigation, route }: any) {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ASV REFERENCE LIBRARY */}
-        <TouchableOpacity style={styles.libraryBtn} onPress={() => navigation.navigate('ReferenceLibrary')}>
-          <Text style={styles.libraryText}>
-            📖 ASV Reference Library
-          </Text>
-        </TouchableOpacity>
-
         {/* ── QUESTIONS 1–3 ── */}
         {QUESTIONS_BEFORE_ANOMALY.map((question) => (
           <SectionCard key={question.id}>

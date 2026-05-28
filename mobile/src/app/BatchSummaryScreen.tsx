@@ -1,11 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Animated, ActivityIndicator,
+  StatusBar, Animated, ActivityIndicator, Alert,
 } from 'react-native';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
-import { getSessionSummaryData } from '../services/ReportService';
+import {
+  getSessionSummaryData,
+  exportSessionSummaryCsv,
+  generateReport,
+  getReportForSession,
+} from '../services/ReportService';
+import type { SessionReport } from '../db/repositories/SessionReportRepository';
 
 const GREEN = '#008236';
 const CHART_HEIGHT = 140;
@@ -98,7 +104,10 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
   const sessionId = route?.params?.sessionId;
   const sessionName = route?.params?.sessionName;
   const [summaryData, setSummaryData] = useState<any>(null);
+  const [report, setReport] = useState<SessionReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,8 +116,14 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
         if (!sessionId) return;
         setLoading(true);
         try {
-          const data = await getSessionSummaryData(sessionId);
-          if (!cancelled) setSummaryData(data);
+          const [data, existingReport] = await Promise.all([
+            getSessionSummaryData(sessionId),
+            getReportForSession(sessionId),
+          ]);
+          if (!cancelled) {
+            setSummaryData(data);
+            setReport(existingReport);
+          }
         } catch (err) {
           console.error('BatchSummaryScreen load error:', err);
         } finally {
@@ -119,6 +134,44 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
       return () => { cancelled = true; };
     }, [sessionId])
   );
+
+  // Per SDD §4.2: "Generate Report" closes Active session + generates report + CSV.
+  // Shows confirmation dialog for irreversible closure if session is still Active.
+  async function handleGenerateReport() {
+    const session = summaryData?.session;
+    const isActive = session?.status === 'Active';
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+      if (isActive) {
+        Alert.alert(
+          'Close Session & Generate Report',
+          'This will permanently close the session. No further evaluations can be added after closure. Export generation will begin immediately.\n\nProceed?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Confirm & Generate', style: 'default', onPress: () => resolve(true) },
+          ]
+        );
+      } else {
+        // Session already Completed — no confirmation needed, just generate.
+        resolve(true);
+      }
+    });
+
+    if (!confirmed) return;
+
+    setGenerating(true);
+    try {
+      const generated = await generateReport(sessionId);
+      setReport(generated);
+      // Refresh summary so session status updates to Completed in the header
+      const data = await getSessionSummaryData(sessionId);
+      setSummaryData(data);
+    } catch (err: any) {
+      Alert.alert('Report Generation Failed', err?.message ?? 'Could not generate report.');
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -140,6 +193,9 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
     { value: stats.corrections, label: 'Expert Corrections', icon: '◷', color: '#B45309', bg: '#FFF8E8', iconBg: '#D97706' },
   ];
 
+  const reportExists = report !== null;
+  const allConfirmed = stats.classified === stats.total && stats.total > 0;
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
@@ -156,9 +212,17 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <View style={styles.reportBanner}>
           <View style={styles.reportIconBox}><Text style={{ fontSize: 18 }}>📄</Text></View>
-          <View>
-            <Text style={styles.reportBannerTitle}>Batch Summary Report</Text>
-            <Text style={styles.reportBannerSub}>Generated: {new Date().toLocaleString('en-US')}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.reportBannerTitle}>
+              {reportExists ? 'Report Generated' : 'Batch Summary Report'}
+            </Text>
+            <Text style={styles.reportBannerSub}>
+              {reportExists
+                ? `Generated: ${new Date(report!.generated_at).toLocaleString('en-US')}`
+                : session?.status === 'Active'
+                  ? 'Session is still active — generate to close and export'
+                  : 'Report not yet generated'}
+            </Text>
           </View>
         </View>
 
@@ -201,18 +265,71 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
         <AnimatedBarChart asvDistribution={asvDistribution} />
         <PieChart gtDistribution={gtDistributionPct} />
 
+        {/* Progress hint when not all samples confirmed */}
+        {!allConfirmed && !reportExists && (
+          <View style={styles.hintBanner}>
+            <Text style={styles.hintText}>
+              ⚠ {stats.total - stats.classified} sample(s) not yet confirmed. All samples must be confirmed before generating a report.
+            </Text>
+          </View>
+        )}
+
         <View style={{ height: 110 }} />
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.exportBtn}>
-          <Text style={styles.exportIcon}>⬇</Text>
-          <Text style={styles.exportBtnText}>Export CSV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.uploadBtn} onPress={() => navigation.navigate('UploadReport', { sessionId, sessionName })}>
-          <Text style={styles.uploadIcon}>⬆</Text>
-          <Text style={styles.uploadBtnText}>Upload Report</Text>
-        </TouchableOpacity>
+
+        {reportExists ? (
+          <>
+            {/* Report exists: show Export + Upload */}
+            <TouchableOpacity
+              style={[styles.exportBtn, exporting && { opacity: 0.7 }]}
+              disabled={exporting}
+              onPress={async () => {
+                setExporting(true);
+                try {
+                  await exportSessionSummaryCsv(sessionId);
+                } catch (err: any) {
+                  Alert.alert('Export Failed', err?.message ?? 'Could not export CSV.');
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              {exporting
+                ? <ActivityIndicator color="#fff" style={{ marginRight: 6 }} />
+                : <Text style={styles.exportIcon}>⬇</Text>}
+              <Text style={styles.exportBtnText}>{exporting ? 'Exporting…' : 'Export CSV'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.uploadBtn, report?.upload_status === 'UPLOADED' && { opacity: 0.5 }]}
+              onPress={() => navigation.navigate('UploadReport', { sessionId })}
+            >
+              <Text style={styles.uploadIcon}>⬆</Text>
+              <Text style={styles.uploadBtnText}>
+                {report?.upload_status === 'UPLOADED' ? 'Uploaded ✓' : 'Upload Report'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          /* No report yet: show Generate Report button */
+          <TouchableOpacity
+            style={[styles.generateBtn, (generating || !allConfirmed) && { opacity: 0.6 }]}
+            disabled={generating || !allConfirmed}
+            onPress={handleGenerateReport}
+          >
+            {generating
+              ? <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+              : <Text style={styles.generateIcon}>📄</Text>}
+            <Text style={styles.generateBtnText}>
+              {generating
+                ? 'Generating Report…'
+                : session?.status === 'Active'
+                  ? 'Generate Report & Close Session'
+                  : 'Generate Report'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -235,11 +352,16 @@ const styles = StyleSheet.create({
   statCard: { flexDirection: 'row', gap: 10, padding: 12, borderRadius: 12, alignItems: 'center' },
   statIconBox: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   yAxisLabel: { fontSize: 11, color: '#9CA3AF', lineHeight: 14 },
+  hintBanner: { backgroundColor: '#FFF8E8', borderRadius: 12, borderWidth: 1, borderColor: '#FDE68A', padding: 14 },
+  hintText: { fontSize: 13, color: '#B45309', lineHeight: 20 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', flexDirection: 'row', padding: 14, gap: 12, borderTopWidth: 1, borderColor: '#E5E7EB' },
-  exportBtn: { flex: 1, backgroundColor: GREEN, padding: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  generateBtn: { flex: 1, backgroundColor: GREEN, padding: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  generateIcon: { fontSize: 16 },
+  generateBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  exportBtn: { flex: 1, backgroundColor: GREEN, padding: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
   exportIcon: { color: '#fff', fontSize: 16 },
   exportBtnText: { color: '#fff', fontWeight: '700' },
-  uploadBtn: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', padding: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  uploadBtn: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', padding: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
   uploadIcon: { color: '#374151', fontSize: 16 },
   uploadBtnText: { color: '#374151', fontWeight: '700' },
   pieLegendRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', marginTop: 12, gap: 14 },
