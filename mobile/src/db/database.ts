@@ -258,7 +258,7 @@ async function createTables(): Promise<void> {
       id                  TEXT PRIMARY KEY,
       session_id          TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
       sample_identifier   TEXT NOT NULL,
-      grain_count         INTEGER NOT NULL,
+      grain_count         INTEGER NOT NULL CHECK (grain_count BETWEEN 1 AND 10),
       gt_class            TEXT NOT NULL DEFAULT 'Null'
                           CHECK (gt_class IN (
                             'Null',
