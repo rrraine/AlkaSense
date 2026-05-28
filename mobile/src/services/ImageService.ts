@@ -19,7 +19,7 @@ const rejectionLogRepo = new RejectionLogRepository();
 // ─────────────────────────────────────────────────────────────
 // Dev toggle — set to true to skip the real API call
 // ─────────────────────────────────────────────────────────────
-const DEV_MOCK_LAYER2 = true; // auto-true in dev, auto-false in production builds
+const DEV_MOCK_LAYER2 = false; // auto-true in dev, auto-false in production builds
 // value: false | true | __DEV__
 // true = use mock layer
 // false = enable API
@@ -154,20 +154,31 @@ async function runLayer2(imageUri: string): Promise<ValidationResult | null> {
                 },
               },
               {
-                text: `You are a grain image quality validator for a rice seed inspection system.
-  Analyze this image and respond ONLY with a valid JSON object — no explanation, no markdown.
+                text: `You are a strict image validator for a rice seed inspection system.
 
-  Rules:
-  - blur: FAIL if the grains appear visibly blurry or out of focus
-  - exposure: FAIL if the image is too dark or too bright to clearly see the grains
-  - grain_visibility: FAIL if individual grains cannot be clearly distinguished
+STAGE 1 — Subject validation (must pass before quality checks):
+- The image MUST contain a petri dish. This is the only subject requirement.
+- Accept any petri dish regardless of contents — rice grains, agar, colony growth, mold, seeds, or any lab sample.
+- Reject anything that does not show a petri dish: people, documents, food, outdoor scenes, screenshots, diagrams, or any non-lab context.
 
-  Respond with exactly this shape:
-  {
-    "passed": true | false,
-    "failed_condition": null | "Blur level" | "Exposure adequacy" | "Grain visibility",
-    "reason": null | "one sentence plain-language reason"
-  }`,
+STAGE 2 — Image quality checks (only if Stage 1 passes):
+- blur: FAIL if the petri dish contents appear visibly blurry or out of focus
+- exposure: FAIL if the image is too dark or too bright to clearly see the dish contents
+- grain_visibility: FAIL if the contents of the petri dish cannot be distinguished at all
+
+Respond ONLY with a valid JSON object — no explanation, no markdown.
+
+{
+  "passed": true | false,
+  "failed_condition": null | "No petri dish" | "Blur level" | "Exposure adequacy" | "Grain visibility",
+  "reason": null | "one sentence plain-language reason"
+}
+
+Examples:
+- A photo of a person → { "passed": false, "failed_condition": "No petri dish", "reason": "Image does not contain a petri dish." }
+- A petri dish with colony growth → { "passed": true, "failed_condition": null, "reason": null }
+- A petri dish photo that is severely overexposed → { "passed": false, "failed_condition": "Exposure adequacy", "reason": "Image is too bright to distinguish the dish contents." }
+- A clearly photographed petri dish with rice grains → { "passed": true, "failed_condition": null, "reason": null }`,
               },
             ],
           },
