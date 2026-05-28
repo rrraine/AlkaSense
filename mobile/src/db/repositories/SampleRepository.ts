@@ -46,8 +46,6 @@ export interface Sample {
 export interface CreateSamplePayload {
   session_id: string;
 
-  sample_identifier: string;
-
   grain_count: number;
 
   rice_variety: RiceVariety;
@@ -75,7 +73,9 @@ function generateUUID(): string {
 // ─────────────────────────────────────────────────────────────
 // Repository
 // ─────────────────────────────────────────────────────────────
-
+interface CreateSampleRecord extends CreateSamplePayload {
+  sample_identifier: string;
+}
 export class SampleRepository {
 
   // ───────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export class SampleRepository {
   // ───────────────────────────────────────────────────────────
 
   async create(
-    payload: CreateSamplePayload
+    payload: CreateSampleRecord
   ): Promise<Sample> {
 
     const id = generateUUID();
@@ -359,4 +359,18 @@ export class SampleRepository {
       [id]
     );
   }
+
+  // ───────────────────────────────────────────────────────────
+  // Get Recent Sample
+  // ───────────────────────────────────────────────────────────
+  async getNextSampleIdentifier(sessionId: string): Promise<string> {
+  const result = await db.getFirstAsync<{ next_id: number }>(
+    `SELECT COALESCE(MAX(CAST(sample_identifier AS INTEGER)), -1) + 1 AS next_id
+     FROM samples
+     WHERE session_id = ?`,
+    [sessionId]
+  );
+
+  return String(result?.next_id ?? 0).padStart(4, '0');
+}
 }

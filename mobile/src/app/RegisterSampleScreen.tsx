@@ -20,7 +20,7 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
   const incubationDuration: string = String(route?.params?.incubationDuration ?? '');
   const incubationTemperature: string = String(route?.params?.incubationTemperature ?? '');
 
-  const [sampleId, setSampleId] = useState('');
+  const [nextIdentifier, setNextIdentifier] = useState<string>('0000');
   const [variety, setVariety] = useState('');
   const [grainCount, setGrainCount] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -30,15 +30,20 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Load existing samples on focus
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       async function load() {
         setLoading(true);
         try {
-          const samples = await sampleService.getSamplesBySession(sessionId);
-          if (!cancelled) setRegisteredSamples(samples);
+          const [samples, next] = await Promise.all([
+            sampleService.getSamplesBySession(sessionId),
+            sampleService.getNextSampleIdentifier(sessionId),
+          ]);
+          if (!cancelled) {
+            setRegisteredSamples(samples);
+            setNextIdentifier(next);
+          }
         } catch (err) {
           console.error('RegisterSampleScreen load error:', err);
         } finally {
@@ -50,18 +55,10 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
     }, [sessionId])
   );
 
-  const nextSampleId = useMemo(() => {
-    const next = registeredSamples.length + 1;
-    return `S${String(next).padStart(3, '0')}`;
-  }, [registeredSamples]);
-
-  const allFieldsFilled = sampleId.trim() !== '' && variety.trim() !== '' && grainCount.trim() !== '';
+  const allFieldsFilled = variety.trim() !== '' && grainCount.trim() !== '';
 
   function validateForm() {
     const newErrors: Record<string, string> = {};
-    if (!sampleId.trim()) {
-      newErrors.sampleId = 'Sample identifier is required.';
-    }
     if (!variety.trim()) {
       newErrors.variety = 'Please select a rice variety.';
     }
@@ -80,18 +77,18 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
     try {
       const newSample = await sampleService.registerSample({
         session_id: sessionId,
-        sample_identifier: sampleId.trim(),
         grain_count: Number(grainCount),
         rice_variety: variety as RiceVariety,
       });
       setRegisteredSamples((prev) => [newSample, ...prev]);
-      setSampleId('');
+      const next = await sampleService.getNextSampleIdentifier(sessionId);
+      setNextIdentifier(next);
       setVariety('');
       setGrainCount('');
       setErrors({});
       setShowDropdown(false);
     } catch (err: any) {
-      setErrors({ sampleId: err.message ?? 'Failed to register sample.' });
+      setErrors({ form: err.message ?? 'Failed to register sample.' });
     } finally {
       setSubmitting(false);
     }
@@ -128,19 +125,18 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>New Sample</Text>
 
+            {/* SAMPLE IDENTIFIER — READ ONLY */}
             <View style={styles.field}>
-              <Text style={styles.label}>Sample Identifier <Text style={styles.required}>*</Text></Text>
-              <TextInput
-                style={[styles.input, errors.sampleId && styles.inputError]}
-                placeholder={`e.g., ${nextSampleId}`}
-                placeholderTextColor="#9CA3AF"
-                value={sampleId}
-                onChangeText={(v) => { setSampleId(v); if (errors.sampleId) setErrors((p) => ({ ...p, sampleId: '' })); }}
-                autoCapitalize="characters"
-              />
-              {!!errors.sampleId && <Text style={styles.errorText}>{errors.sampleId}</Text>}
+              <Text style={styles.label}>Sample Identifier</Text>
+              <View style={styles.inputReadOnly}>
+                <Text style={styles.inputReadOnlyText}>{nextIdentifier}</Text>
+                <View style={styles.inputReadOnlyBadge}>
+                  <Text style={styles.inputReadOnlyBadgeText}>Auto</Text>
+                </View>
+              </View>
             </View>
 
+            {/* RICE VARIETY */}
             <View style={styles.field}>
               <Text style={styles.label}>Rice Variety <Text style={styles.required}>*</Text></Text>
               <TouchableOpacity
@@ -170,6 +166,7 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
               {!!errors.variety && <Text style={styles.errorText}>{errors.variety}</Text>}
             </View>
 
+            {/* GRAIN COUNT */}
             <View style={styles.field}>
               <Text style={styles.label}>Grain Count <Text style={styles.required}>*</Text></Text>
               <TextInput
@@ -182,6 +179,8 @@ export default function RegisterSampleScreen({ navigation, route }: any) {
               />
               {!!errors.grainCount && <Text style={styles.errorText}>{errors.grainCount}</Text>}
             </View>
+
+            {!!errors.form && <Text style={styles.errorText}>{errors.form}</Text>}
 
             <TouchableOpacity
               style={[styles.registerButton, (!allFieldsFilled || submitting) && styles.registerButtonDisabled]}
@@ -274,6 +273,10 @@ const styles = StyleSheet.create({
   required: { color: '#DC2626' },
   input: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: '#111827', borderWidth: 1, borderColor: 'transparent' },
   inputError: { borderColor: '#EF4444' },
+  inputReadOnly: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  inputReadOnlyText: { fontSize: 15, fontWeight: '700', color: '#374151', letterSpacing: 2 },
+  inputReadOnlyBadge: { backgroundColor: '#E5E7EB', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  inputReadOnlyBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 },
   errorText: { fontSize: 12, color: '#EF4444', marginTop: 4 },
   dropdown: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1, borderColor: 'transparent', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dropdownPlaceholder: { fontSize: 15, color: '#9CA3AF' },

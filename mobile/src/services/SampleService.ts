@@ -8,6 +8,7 @@ import {
 
 import { SessionRepository } from '../../src/db/repositories/SessionRepository';
 
+
 const sampleRepository =
   new SampleRepository();
 
@@ -35,28 +36,42 @@ export class SampleService {
       );
     }
 
-    const identifierExists =
-      await sampleRepository.identifierExists(
-        payload.sample_identifier,
-        payload.session_id
-      );
+    // autoincrement feature here
+     const sampleIdentifier = await sampleRepository.getNextSampleIdentifier(payload.session_id);
 
-    if (identifierExists) {
-      throw new Error(
-        'Sample identifier already exists'
-      );
-    }
+    // const identifierExists =
+    //   await sampleRepository.identifierExists(
+    //     payload.sample_identifier,
+    //     payload.session_id
+    //   );
+
+    // if (identifierExists) {
+    //   throw new Error(
+    //     'Sample identifier already exists'
+    //   );
+    // }
 
     try {
-      return await sampleRepository.create(payload);
+      return await sampleRepository.create({
+        ...payload,
+        sample_identifier: sampleIdentifier,
+      });
     } catch (err: any) {
-      // SQLite UNIQUE constraint fires when the identifier collides across sessions.
-      // Convert the raw driver error into a user-friendly message.
       if (err?.message?.includes('UNIQUE constraint failed')) {
-        throw new Error('Sample identifier already exists in this session. Please use a different identifier.');
+        throw new Error('Sample identifier collision. Please try again.');
       }
       throw err;
     }
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Get Next Sample Identifier
+  // ───────────────────────────────────────────────────────────
+
+  async getNextSampleIdentifier(
+    sessionId: string
+  ): Promise<string> {
+    return await sampleRepository.getNextSampleIdentifier(sessionId);
   }
 
   // ───────────────────────────────────────────────────────────
