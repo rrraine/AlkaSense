@@ -123,14 +123,6 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* ASV REFERENCE LIBRARY */}
-        <TouchableOpacity
-          style={styles.libraryBtn}
-          onPress={() => navigation.navigate('ReferenceLibrary')}
-        >
-          <Text style={styles.libraryText}>📖 ASV Reference Library</Text>
-        </TouchableOpacity>
-
         {/* SESSION LIST */}
         {loading ? (
           <ActivityIndicator

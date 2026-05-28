@@ -4,7 +4,7 @@ import db from '../database';
 // Types
 // ─────────────────────────────────────────────────────────────
 
-export type UploadStatus = 'Generated' | 'Uploaded';
+export type UploadStatus = 'NOT_UPLOADED' | 'UPLOADING' | 'UPLOADED' | 'FAILED';
 
 export interface SessionReport {
   id: string;
@@ -19,7 +19,11 @@ export interface SessionReport {
   pdf_file_path: string | null;
   csv_file_path: string | null;
   upload_status: UploadStatus;
-  created_at: string;
+  upload_attempts: number;
+  last_upload_attempt_at: string | null;
+  uploaded_at: string | null;
+  server_id: string | null;
+  generated_at: string;
 }
 
 export interface CreateSessionReportPayload {
@@ -61,8 +65,9 @@ export class SessionReportRepository {
         id, session_id, evaluator_id,
         total_samples, total_classified, total_rejected, total_corrections,
         asv_distribution, gt_distribution,
-        pdf_file_path, csv_file_path, upload_status
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Generated')`,
+        pdf_file_path, csv_file_path,
+        upload_status
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_UPLOADED')`,
       [
         id,
         payload.session_id,
@@ -78,21 +83,12 @@ export class SessionReportRepository {
       ]
     );
 
-    // DEBUG LOG | DELETE AFTERWARDS ---------------------------------
-    const inserted = await db.getFirstAsync(
-      `SELECT * FROM session_reports WHERE id = ?`,
-      [id]
-    );
-    console.log('✅ SESSION REPORT SAVED TO SQLITE:', JSON.stringify(inserted, null, 2));
-
     return await this.getById(id);
   }
 
-  
-
   async getById(id: string): Promise<SessionReport> {
     const row = await db.getFirstAsync<SessionReport>(
-      `SELECT session_reports.*, end_time AS created_at FROM session_reports WHERE id = ?`,
+      `SELECT * FROM session_reports WHERE id = ?`,
       [id]
     );
     if (!row) throw new Error(`SessionReport ${id} not found`);
@@ -101,16 +97,55 @@ export class SessionReportRepository {
 
   async getBySession(sessionId: string): Promise<SessionReport | null> {
     const row = await db.getFirstAsync<SessionReport>(
-      `SELECT session_reports.*, end_time AS created_at FROM session_reports WHERE session_id = ? ORDER BY end_time DESC LIMIT 1`,
+      `SELECT * FROM session_reports WHERE session_id = ? ORDER BY generated_at DESC LIMIT 1`,
       [sessionId]
     );
     return row ?? null;
   }
 
-  async markUploaded(id: string): Promise<void> {
+  async getPendingUploads(): Promise<SessionReport[]> {
+    return await db.getAllAsync<SessionReport>(
+      `SELECT * FROM session_reports WHERE upload_status IN ('NOT_UPLOADED', 'FAILED') ORDER BY generated_at ASC`
+    );
+  }
+
+  async markUploading(id: string): Promise<void> {
+    const now = new Date().toISOString();
     await db.runAsync(
-      `UPDATE session_reports SET upload_status = 'Uploaded' WHERE id = ?`,
+      `UPDATE session_reports
+       SET upload_status = 'UPLOADING',
+           upload_attempts = upload_attempts + 1,
+           last_upload_attempt_at = ?
+       WHERE id = ?`,
+      [now, id]
+    );
+  }
+
+  async markUploaded(id: string, serverId: string): Promise<void> {
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `UPDATE session_reports
+       SET upload_status = 'UPLOADED',
+           uploaded_at = ?,
+           server_id = ?
+       WHERE id = ?`,
+      [now, serverId, id]
+    );
+  }
+
+  async markFailed(id: string): Promise<void> {
+    await db.runAsync(
+      `UPDATE session_reports
+       SET upload_status = 'FAILED'
+       WHERE id = ?`,
       [id]
+    );
+  }
+
+  async updateCsvPath(id: string, csvPath: string): Promise<void> {
+    await db.runAsync(
+      `UPDATE session_reports SET csv_file_path = ? WHERE id = ?`,
+      [csvPath, id]
     );
   }
 
