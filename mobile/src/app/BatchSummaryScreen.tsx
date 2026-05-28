@@ -102,6 +102,7 @@ function AnimatedBarChart({ asvDistribution }: { asvDistribution: number[] }) {
 
 export default function BatchSummaryScreen({ navigation, route }: any) {
   const sessionId = route?.params?.sessionId;
+  const sessionName = route?.params?.sessionName;
   const [summaryData, setSummaryData] = useState<any>(null);
   const [report, setReport] = useState<SessionReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,7 +205,7 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>Batch Summary</Text>
-          <Text style={styles.headerSubtitle}>Session {session?.id ?? sessionId}</Text>
+          <Text style={styles.headerSubtitle}>{sessionName}</Text>
         </View>
       </View>
 
@@ -277,6 +278,7 @@ export default function BatchSummaryScreen({ navigation, route }: any) {
       </ScrollView>
 
       <View style={styles.footer}>
+
         {reportExists ? (
           <>
             {/* Report exists: show Export + Upload */}
