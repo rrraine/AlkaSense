@@ -8,12 +8,8 @@ import {
 
 import { SessionRepository } from '../../src/db/repositories/SessionRepository';
 
-
-const sampleRepository =
-  new SampleRepository();
-
-const sessionRepository =
-  new SessionRepository();
+const sampleRepository = new SampleRepository();
+const sessionRepository = new SessionRepository();
 
 export class SampleService {
 
@@ -21,35 +17,19 @@ export class SampleService {
   // Register Sample
   // ───────────────────────────────────────────────────────────
 
-  async registerSample(
-    payload: CreateSamplePayload
-  ) {
+  async registerSample(payload: CreateSamplePayload) {
 
-    const session =
-      await sessionRepository.getById(
-        payload.session_id
-      );
+    const session = await sessionRepository.getById(payload.session_id);
 
     if (session.status !== 'Active') {
-      throw new Error(
-        'Cannot register sample to completed session'
-      );
+      throw new Error('Cannot register sample to completed session');
     }
 
-    // autoincrement feature here
-     const sampleIdentifier = await sampleRepository.getNextSampleIdentifier(payload.session_id);
+    if (payload.grain_count < 1 || payload.grain_count > 10) {
+      throw new Error('Grain count must be between 1 and 10.');
+    }
 
-    // const identifierExists =
-    //   await sampleRepository.identifierExists(
-    //     payload.sample_identifier,
-    //     payload.session_id
-    //   );
-
-    // if (identifierExists) {
-    //   throw new Error(
-    //     'Sample identifier already exists'
-    //   );
-    // }
+    const sampleIdentifier = await sampleRepository.getNextSampleIdentifier(payload.session_id);
 
     try {
       return await sampleRepository.create({
@@ -65,16 +45,6 @@ export class SampleService {
   }
 
   // ───────────────────────────────────────────────────────────
-  // Get Next Sample Identifier
-  // ───────────────────────────────────────────────────────────
-
-  async getNextSampleIdentifier(
-    sessionId: string
-  ): Promise<string> {
-    return await sampleRepository.getNextSampleIdentifier(sessionId);
-  }
-
-  // ───────────────────────────────────────────────────────────
   // Submit Image
   // ───────────────────────────────────────────────────────────
 
@@ -84,17 +54,13 @@ export class SampleService {
     validationStatus: string;
   }) {
 
-    const imageId =
-      await sampleRepository.attachImage(
-        payload.sampleId,
-        payload.imagePath,
-        payload.validationStatus
-      );
-
-    await sampleRepository.updateStatus(
+    const imageId = await sampleRepository.attachImage(
       payload.sampleId,
-      'Image Submitted'
+      payload.imagePath,
+      payload.validationStatus
     );
+
+    await sampleRepository.updateStatus(payload.sampleId, 'Image Submitted');
 
     return imageId;
   }
@@ -120,57 +86,45 @@ export class SampleService {
   // Get Samples By Session
   // ───────────────────────────────────────────────────────────
 
-  async getSamplesBySession(
-    sessionId: string
-  ) {
+  async getSamplesBySession(sessionId: string) {
+    return await sampleRepository.getBySession(sessionId);
+  }
 
-    return await sampleRepository
-      .getBySession(sessionId);
+  // ───────────────────────────────────────────────────────────
+  // Get Next Sample Identifier
+  // ───────────────────────────────────────────────────────────
+
+  async getNextSampleIdentifier(sessionId: string): Promise<string> {
+    return await sampleRepository.getNextSampleIdentifier(sessionId);
   }
 
   // ───────────────────────────────────────────────────────────
   // Get Sample Image
   // ───────────────────────────────────────────────────────────
 
-  async getSampleImage(
-    sampleId: string
-  ) {
-
-    return await sampleRepository
-      .getImage(sampleId);
+  async getSampleImage(sampleId: string) {
+    return await sampleRepository.getImage(sampleId);
   }
 
   // ───────────────────────────────────────────────────────────
   // Delete Sample
   // ───────────────────────────────────────────────────────────
 
-  async deleteSample(
-    sampleId: string
-  ): Promise<void> {
+  async deleteSample(sampleId: string): Promise<void> {
 
-    await db.withTransactionAsync(
-      async () => {
+    await db.withTransactionAsync(async () => {
 
-        await db.runAsync(
-          `
-          DELETE FROM evaluation_records
-          WHERE sample_id = ?
-          `,
-          [sampleId]
-        );
+      await db.runAsync(
+        `DELETE FROM evaluation_records WHERE sample_id = ?`,
+        [sampleId]
+      );
 
-        await db.runAsync(
-          `
-          DELETE FROM grain_images
-          WHERE sample_id = ?
-          `,
-          [sampleId]
-        );
+      await db.runAsync(
+        `DELETE FROM grain_images WHERE sample_id = ?`,
+        [sampleId]
+      );
 
-        await sampleRepository.delete(
-          sampleId
-        );
-      }
-    );
+      await sampleRepository.delete(sampleId);
+    });
   }
 }
