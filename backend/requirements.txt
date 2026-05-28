@@ -32,8 +32,8 @@ google-pasta==0.2.0
 google-resumable-media==2.9.0
 googleapis-common-protos==1.75.0
 greenlet==3.5.1
-grpcio==1.80.0
-grpcio-status==1.80.0
+grpcio==1.62.3
+grpcio-status==1.62.3
 h11==0.16.0
 h2==4.3.0
 h5py==3.16.0
@@ -49,7 +49,7 @@ Markdown==3.10.2
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
-ml-dtypes==0.3.2
+
 mmh3==5.2.1
 msgpack==1.1.2
 multidict==6.7.1
@@ -63,7 +63,7 @@ pillow==12.2.0
 postgrest==2.30.0
 propcache==0.5.2
 proto-plus==1.28.0
-protobuf==4.25.9
+
 psycopg2-binary==2.9.12
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
@@ -93,10 +93,8 @@ supabase==2.30.0
 supabase-auth==2.30.0
 supabase-functions==2.30.0
 tenacity==9.1.4
-tensorboard==2.16.2
-tensorboard-data-server==0.7.2
-tensorflow==2.16.2
-tensorflow-io-gcs-filesystem==0.37.1
+
+tensorflow==2.19.1
 termcolor==3.3.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
